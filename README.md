@@ -1,26 +1,3 @@
-
-The button ELO Tourney runs a tourney of all our bots against eachother (and EvilBot), and calculates ELO scores for each.
-The results of this are output to elo.txt.
-
-To add a bot to the internal tourney:
-
-* Create a bot class that is a copy of `MyBot` (modified to have custom playing logic).
-* Add the class name to `Application.Core.ChallengeController.PlayerType` enum.
-* Update the switch statement in
-  `Application.Core.ChallengeController.CreatePlayer` to instantiate an
-  instance of your new bot class.
-* Add your bot to the ELO players in `Application.Core.ChallengeController.StartELOTourney`.
-
-
-* * * 
-
-To make your bot default for the MyBot vs X buttons (for testing), rearrange
-the items in `Application.Core.ChallengeController.CreatePlayer` such that the
-MyBot player spawns your bot.
-
-The token counter currently looks at MyBot only (sorry!). I therefore suggest developing the bot in the MyBot file until its at a finished state, then renaming it and adding it to the ELO pool when you want to try a new one out.
-
-* * * 
 # Chess Coding Challenge (C#)
 Welcome to the [chess coding challenge](https://youtu.be/iScy18pVR58)! This is a friendly competition in which your goal is to create a small chess bot (in C#) using the framework provided in this repository.
 Once submissions close, these bots will battle it out to discover which bot is best!
