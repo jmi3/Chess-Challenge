@@ -35,13 +35,13 @@ public class AlphaBetaBot : IChessBot
 
             // recurse on the new state with 1 less depth, and !­­maximising
             float currEval;
-            currEval = AlphaBetaSearch(board, depth - 1, -alpha, -beta, !maximising);
+            currEval = AlphaBetaSearch(board, depth - 1, alpha, beta, !maximising);
 
             // keep the new evaluation iff it is better
             if (maximising) {
                 bestEval = currEval > bestEval ? currEval : bestEval;
                 // keep track of global maximum
-                alpha = alpha > currEval ? alpha : currEval;
+                alpha = currEval > alpha ? currEval : alpha;
                 if (beta <= alpha) {
                     board.UndoMove(nextMove);
                     break;
@@ -50,7 +50,7 @@ public class AlphaBetaBot : IChessBot
             else {
                 bestEval = currEval < bestEval ? currEval : bestEval;
                 // keep track of global minimum
-                beta = beta < currEval ? beta : currEval;
+                beta = currEval < beta ? currEval : beta;
                 if (beta <= alpha) {
                     board.UndoMove(nextMove);
                     break;
@@ -73,63 +73,50 @@ public class AlphaBetaBot : IChessBot
         // Ranked list of moves
         List<Move> moves = board.GetLegalMoves().ToList().OrderByDescending(m => (maximising ? 1 : -1) * MEval(m)).ToList();
 
-        // Starting point
-        float localAlpha = alpha;
-        float localBeta = beta;
-        float bestScore = float.NaN;
-
         if (maximising) {
-            bestScore = float.NegativeInfinity;
-            foreach (Move futureMove in moves) {
-                // set up hypothetical state
-                board.MakeMove(futureMove);
+            float bestScore = float.NegativeInfinity;
 
-                float eval = AlphaBetaSearch2(board, depth - 1, localAlpha, localBeta, !maximising);
-                bestScore = eval > bestScore ? eval : bestScore;
-                if (bestScore > localBeta) {
-                    // remember to restore previous state
+            foreach (Move futureMove in moves) {
+                board.MakeMove(futureMove);
+                float currEval = AlphaBetaSearch2(board, depth - 1, alpha, beta, !maximising);
+                bestScore = currEval > bestScore ? currEval : bestScore;
+                alpha = currEval > alpha ? currEval : alpha;
+                if (beta <= alpha) {
                     board.UndoMove(futureMove);
                     break;
                 }
-                // keep track of search maximum
-                localAlpha = bestScore > localAlpha ? bestScore : localAlpha;
-                // remember to restore previous state
                 board.UndoMove(futureMove);
             }
             return bestScore;
         }
         else {
-            bestScore = float.PositiveInfinity;
-            foreach(Move futureMove in moves) {
-                // set up hypothetical state
+            float bestScore = float.PositiveInfinity;
+            foreach (Move futureMove in moves) {
                 board.MakeMove(futureMove);
-
-                float eval = AlphaBetaSearch2(board, depth - 1, localAlpha, localBeta, !maximising);
-                bestScore = eval < bestScore ? eval : bestScore;
-                if (bestScore < localAlpha) {
-                    // remember to restore previous state
+                float currEval = AlphaBetaSearch2(board, depth - 1, alpha, beta, !maximising);
+                bestScore = currEval < bestScore ? currEval : bestScore;
+                beta = currEval < beta ? currEval : beta;
+                if (beta <= alpha) {
                     board.UndoMove(futureMove);
                     break;
                 }
-                // keep track of search minimum
-                localBeta = bestScore < localBeta ? bestScore : localBeta;
-                // remember to restore previous state
                 board.UndoMove(futureMove);
             }
+            return bestScore;
         }
-
-        return bestScore;
     }
 
     public Move Think(Board board, Timer timer)
     {
-        // maximising depends on which side we're playing
+        // maximising depends on which side we're playing due to the sign of
+        // evaluation
         bool maximising = board.IsWhiteToMove;
 
         // Depth for Alpha-Beta exploration
-        int searchDepth = 3;
+        int searchDepth = 4;
 
         // Ranked list of moves
+        // TODO: improve ranking method
         List<Move> moves = board.GetLegalMoves().ToList().OrderByDescending(m => (maximising ? 1 : -1) * MEval(m)).ToList();
 
         // Init with nonsense (makes debugging obvious (I hope))
@@ -138,9 +125,7 @@ public class AlphaBetaBot : IChessBot
 
         // search the moves
         foreach (Move currMove in moves) {
-            board.MakeMove(currMove);
-            // we've made our move, so start by eval.ng opponent's pos.n
-            float currEval = AlphaBetaSearch2( board
+            float currEval = AlphaBetaSearch( board
                                              , searchDepth
                                              , float.NegativeInfinity
                                              , float.PositiveInfinity
@@ -162,19 +147,30 @@ public class AlphaBetaBot : IChessBot
                 bestEval = currEval;
                 bestMove = currMove;
             }
-
-            // remember to undo
-            board.UndoMove(currMove);
         }
 
         ConsoleHelper.Log("AlphaBetaBot chose " + bestMove.ToString() + " with eval.n: " + bestEval.ToString());
         return bestMove;
     }
 
+    // Piece weights
+    // https://www.chessprogramming.org/Evaluation
+    private int getPieceWeight(PieceType pt) {
+        switch (pt)
+        {
+            case PieceType.Queen:  return 9;
+            case PieceType.Rook:   return 5;
+            case PieceType.Bishop:
+            case PieceType.Knight: return 3;
+            case PieceType.Pawn:   return 1;
+            default: return 0;
+        }
+    }
+
     // Simple move ranking function.
     // TODO: Make this better.
     private int MEval(Move move) {
-        return 1 + (move.IsCapture ? 8 : 0) + (move.IsPromotion ? 4 : 0) + (move.IsCastles ? 2 : 0);
+        return 1 + (move.IsCapture ? 8 + getPieceWeight(move.CapturePieceType) : 0) + (move.IsPromotion ? 4 : 0) + (move.IsCastles ? 2 : 0);
     }
 
     // Rudimentary evaluation function as proposed here
@@ -193,11 +189,12 @@ public class AlphaBetaBot : IChessBot
         int Q = board.GetPieceList(PieceType.Queen, true).Count - board.GetPieceList(PieceType.Queen, false).Count;
 
         //Multiply the material differences by their respective weights.
-        float result = (9 * Q) + 
-                       (5 * R) + 
-                       (3 * (B + N)) + 
-                       (1 * P);
+        float result = (getPieceWeight(PieceType.Queen) * Q) +
+                       (getPieceWeight(PieceType.Rook) * R) +
+                       (getPieceWeight(PieceType.Bishop) * (B + N)) +
+                       (getPieceWeight(PieceType.Pawn) * P);
 
+        // FIXME: Should this be done in the search itself?
         if(!board.IsWhiteToMove)
         {
             result *= -1; //Adjusting result for when playing the black pieces.
