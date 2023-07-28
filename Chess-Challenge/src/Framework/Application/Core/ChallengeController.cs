@@ -1,5 +1,4 @@
 ﻿using ChessChallenge.Chess;
-using ChessChallenge.Example;
 using Raylib_cs;
 using System;
 using System.IO;
@@ -11,6 +10,8 @@ using System.Threading.Tasks;
 using static ChessChallenge.Application.Settings;
 using static ChessChallenge.Application.ConsoleHelper;
 using System.Collections.Generic;
+using System.Reflection;
+using Bots;
 
 namespace ChessChallenge.Application
 {
@@ -19,10 +20,34 @@ namespace ChessChallenge.Application
         public enum PlayerType
         {
             Human,
-            MyBot,
-            RandomBot,
-            MyBot3,
-            EvilBot
+            Bot
+        }
+
+        public class PlayerArgs
+        {
+            public readonly PlayerType Type;
+
+            public readonly Type Bot;
+
+            public PlayerArgs(PlayerType type, Type bot)
+            {
+                Type = type;
+                Bot = bot;
+            }
+            public PlayerArgs(PlayerType type) : this(type, typeof(MyBot)) {}
+            public PlayerArgs(Type bot) : this(PlayerType.Bot, bot) {}
+
+            public bool IsBot => Type is PlayerType.Bot;
+
+            public override string ToString()
+            {
+                return IsBot ? Bot.ToString() : "Human";
+            }
+
+            public object? GetBotInstance()
+            {
+                return Activator.CreateInstance(Bot);
+            }
         }
 
         // Game state
@@ -76,10 +101,21 @@ namespace ChessChallenge.Application
             botMatchStartFens = FileHelper.ReadResourceFile("Fens.txt").Split('\n').Where(fen => fen.Length > 0).ToArray();
             botTaskWaitHandle = new AutoResetEvent(false);
 
-            StartNewGame(PlayerType.Human, PlayerType.MyBot);
+            StartNewGame(new PlayerArgs(PlayerType.Human), new PlayerArgs(PlayerType.Bot));
         }
 
-        public void StartNewGame(PlayerType whiteType, PlayerType blackType)
+        public IEnumerable<Type> BotTypes =>
+            Assembly.GetExecutingAssembly().GetTypes()
+                .Where(t => t.Namespace == "Bots");
+
+        public IEnumerable<PlayerArgs> AllPlayerArgs =>
+            new List<PlayerArgs>() { new PlayerArgs(PlayerType.Human) }
+                .Concat(BotTypes.Select(x => new PlayerArgs(x)));
+
+        public bool GameHasHuman =>
+            !PlayerWhite.PlayerArgs.IsBot || !PlayerBlack.PlayerArgs.IsBot;
+
+        public void StartNewGame(PlayerArgs white, PlayerArgs black)
         {
             // End any ongoing game
             EndGame(GameResult.DrawByArbiter, log: false, autoStartNextBotMatch: false);
@@ -96,13 +132,13 @@ namespace ChessChallenge.Application
             }
             // Board Setup
             board = new Board();
-            bool isGameWithHuman = whiteType is PlayerType.Human || blackType is PlayerType.Human;
+            bool isGameWithHuman = !white.IsBot || !black.IsBot;
             int fenIndex = isGameWithHuman ? 0 : botMatchGameIndex / 2;
             board.LoadPosition(botMatchStartFens[fenIndex]);
 
             // Player Setup
-            PlayerWhite = CreatePlayer(whiteType);
-            PlayerBlack = CreatePlayer(blackType);
+            PlayerWhite = CreatePlayer(white);
+            PlayerBlack = CreatePlayer(black);
             PlayerWhite.SubscribeToMoveChosenEventIfHuman(OnMoveChosen);
             PlayerBlack.SubscribeToMoveChosenEventIfHuman(OnMoveChosen);
 
@@ -146,73 +182,69 @@ namespace ChessChallenge.Application
 
 
         public void StartELOTourney() {
-          Task.Factory.StartNew(ELOThread, TaskCreationOptions.LongRunning);
 
+            Task.Factory.StartNew(ELOThread, TaskCreationOptions.LongRunning);
 
+            void ELOThread()
+            {
+                var bots = BotTypes;
+                var eloScores = new Dictionary<Type,double>();
 
-          void ELOThread(){
-
-            var bots = new List<PlayerType> { PlayerType.MyBot,PlayerType.RandomBot,PlayerType.MyBot3,PlayerType.EvilBot };
-            var eloScores = new Dictionary<PlayerType,double>();
-
-            foreach (PlayerType bot in bots){
-              eloScores[bot] = 1000.0;
-            }
-
-            var K = 32;
-
-            foreach (PlayerType player1 in bots) {
-              foreach (PlayerType player2 in bots) {
-                if (player1 == player2) {
-                  continue;
-                }
-                // reset stats
-                botMatchGameIndex = 0;
-                BotStatsA = new BotMatchStats(player2.ToString());
-                BotStatsB = new BotMatchStats(player1.ToString());
-
-                StartNewGame(player1,player2);
-                // block
-                eloMatchRunning = true;
-                while (eloMatchRunning) {
+                foreach (var bot in bots) {
+                    eloScores[bot] = 1000.0;
                 }
 
-                var n_games = botMatchGameIndex + 1;
+                var K = 32;
+
+                foreach (var player1 in bots) {
+                    foreach (var player2 in bots) {
+                        if (player1 == player2) {
+                            continue;
+                        }
+                        // reset stats
+                        botMatchGameIndex = 0;
+                        BotStatsA = new BotMatchStats(player2.ToString());
+                        BotStatsB = new BotMatchStats(player1.ToString());
+                    
+                        StartNewGame(new PlayerArgs(player1), new PlayerArgs(player2));
+                        // block
+                        eloMatchRunning = true;
+                        while (eloMatchRunning) {
+                        }
+
+                        var n_games = botMatchGameIndex + 1;
 
 
-              // perform elo ranking
-              // see https://en.wikipedia.org/wiki/Elo_rating_system#Theory
+                        // perform elo ranking
+                        // see https://en.wikipedia.org/wiki/Elo_rating_system#Theory
 
-              var Ra = eloScores[player2];
-              var Rb = eloScores[player1];
+                        var Ra = eloScores[player2];
+                        var Rb = eloScores[player1];
 
-              var Qa = Math.Pow(10.0,Ra/400.0);
-              var Qb = Math.Pow(10.0,Rb/400.0);
+                        var Qa = Math.Pow(10.0,Ra/400.0);
+                        var Qb = Math.Pow(10.0,Rb/400.0);
 
-              var expectedScoreA = Qa / (Qa+Qb);
-              var expectedScoreB = Qb / (Qa+Qb);
+                        var expectedScoreA = Qa / (Qa+Qb);
+                        var expectedScoreB = Qb / (Qa+Qb);
 
-              var scoreA = 0.5*BotStatsA.NumDraws + 1*BotStatsA.NumWins;
-              var scoreB = 0.5*BotStatsB.NumDraws + 1*BotStatsB.NumWins;
+                        var scoreA = 0.5*BotStatsA.NumDraws + 1*BotStatsA.NumWins;
+                        var scoreB = 0.5*BotStatsB.NumDraws + 1*BotStatsB.NumWins;
 
-              var Ra_new = Ra + K * (scoreA-expectedScoreA);
-              var Rb_new = Rb + K * (scoreB-expectedScoreB);
+                        var Ra_new = Ra + K * (scoreA-expectedScoreA);
+                        var Rb_new = Rb + K * (scoreB-expectedScoreB);
 
-              eloScores[player1] = Ra_new;
-              eloScores[player2] = Rb_new;
-              ConsoleHelper.Log(player1 + ": " + Ra + " -> " + Ra_new);
-              ConsoleHelper.Log(player2 + ": " + Rb + " -> " + Rb_new);
-
-              }
+                        eloScores[player1] = Ra_new;
+                        eloScores[player2] = Rb_new;
+                        Log(player1 + ": " + Ra + " -> " + Ra_new);
+                        Log(player2 + ": " + Rb + " -> " + Rb_new);
+                    }
+                }
+                using (StreamWriter file = new StreamWriter("elo.txt"))
+                {
+                    foreach (var entry in eloScores)
+                        file.WriteLine("{0} {1}", entry.Key, entry.Value);
+                }
             }
-            using (StreamWriter file = new StreamWriter("elo.txt"))
-                foreach (var entry in eloScores)
-                    file.WriteLine("{0} {1}", entry.Key, entry.Value); 
-            }
-
-
-
-
         }
 
         Move GetBotMove()
@@ -278,15 +310,12 @@ namespace ChessChallenge.Application
             }
         }
 
-        ChessPlayer CreatePlayer(PlayerType type)
+        ChessPlayer CreatePlayer(PlayerArgs args)
         {
-            return type switch
+            return args.Type switch
             {
-                PlayerType.MyBot => new ChessPlayer(new MyBot(), type, GameDurationMilliseconds),
-                PlayerType.RandomBot => new ChessPlayer(new RandomBot(), type, GameDurationMilliseconds),
-                PlayerType.MyBot3 => new ChessPlayer(new MyBot3(), type, GameDurationMilliseconds),
-                PlayerType.EvilBot => new ChessPlayer(new EvilBot(), type, GameDurationMilliseconds),
-                _ => new ChessPlayer(new HumanPlayer(boardUI), type)
+                PlayerType.Bot => new ChessPlayer(args.GetBotInstance()!, args, GameDurationMilliseconds),
+                _ => new ChessPlayer(new HumanPlayer(boardUI), args, GameDurationMilliseconds)
             };
         }
 
@@ -395,7 +424,7 @@ namespace ChessChallenge.Application
         {
             if (originalGameID == gameID)
             {
-                StartNewGame(PlayerBlack.PlayerType, PlayerWhite.PlayerType);
+                StartNewGame(PlayerBlack.PlayerArgs, PlayerWhite.PlayerArgs);
             }
             timer.Close();
         }
@@ -471,15 +500,19 @@ namespace ChessChallenge.Application
             MatchStatsUI.DrawMatchStats(this);
         }
 
-        static string GetPlayerName(ChessPlayer player) => GetPlayerName(player.PlayerType);
-        static string GetPlayerName(PlayerType type) => type.ToString();
+        static string GetPlayerName(ChessPlayer player) => GetPlayerName(player.PlayerArgs);
+        static string GetPlayerName(PlayerArgs args) => args.ToString();
 
-        public void StartNewBotMatch(PlayerType botTypeA, PlayerType botTypeB)
+        public void StartNewBotMatch(Type botTypeA, Type botTypeB)
         {
             EndGame(GameResult.DrawByArbiter, log: false, autoStartNextBotMatch: false);
+
+            var argsA = new PlayerArgs(botTypeA);
+            var argsB = new PlayerArgs(botTypeB);
+
             botMatchGameIndex = 0;
-            string nameA = GetPlayerName(botTypeA);
-            string nameB = GetPlayerName(botTypeB);
+            string nameA = GetPlayerName(argsA);
+            string nameB = GetPlayerName(argsB);
             if (nameA == nameB)
             {
                 nameA += " (A)";
@@ -489,7 +522,7 @@ namespace ChessChallenge.Application
             BotStatsB = new BotMatchStats(nameB);
             botAPlaysWhite = true;
             Log($"Starting new match: {nameA} vs {nameB}", false, ConsoleColor.Blue);
-            StartNewGame(botTypeA, botTypeB);
+            StartNewGame(argsA, argsA);
         }
 
 
