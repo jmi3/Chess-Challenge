@@ -9,7 +9,7 @@ public class SymmetricEvalBot : IChessBot
     private const int PLYDEPTH = 2;
     public Move Think(Board board, Timer timer)
     {
-        ConsoleHelper.Log("NEW MOVE", false, ConsoleColor.Blue);
+        ConsoleHelper.Log("Bot is thinking. Current eval: " + Eval(board, board.IsWhiteToMove, PLYDEPTH, new Move()).ToString(), false, ConsoleColor.Blue);
         Move[] moves = board.GetLegalMoves();
 
         Move my_move = GetBestMove(board, moves, 1);
@@ -30,7 +30,6 @@ public class SymmetricEvalBot : IChessBot
             board.MakeMove(m);
             float e = Eval(board, board.IsWhiteToMove, ply, m);
             if (!white) { e *= -1; }
-            if (ply == 2) { ConsoleHelper.Log(m.ToString() + "->" + e.ToString()); }
 
             if (e > best_eval)
             {
@@ -59,20 +58,24 @@ public class SymmetricEvalBot : IChessBot
         //Multiply the material differences by their respective weights.
         float result = (9 * Q) +
             (5 * R) +
-            (3 * (B + N)) +
+            (3 * N) + (3.2f * B) + //NB the higher weighting for bishops!
             (1 * P);
 
         if (ply < PLYDEPTH)
         {
             ply += 1;
-            Move opp_best_move = GetBestMove(board, board.GetLegalMoves(false), ply);
-            String current_side = board.IsWhiteToMove ? "White" : "Black";
-            board.MakeMove(opp_best_move);
-            float eval_delta = Eval(board, !white, ply, opp_best_move);
-            result += eval_delta;
-            ConsoleHelper.Log("I think that " + current_side + "'s best move is: " + opp_best_move.ToString() + " if I play " + prev.ToString());
-            ConsoleHelper.Log("Eval delta: " + eval_delta.ToString() + " => " + result.ToString(), false,ConsoleColor.Red);
-            board.UndoMove(opp_best_move);
+            Move[] opp_moves = board.GetLegalMoves(true);
+            if(opp_moves.Length > 0)
+            {
+                Move opp_best_move = GetBestMove(board, board.GetLegalMoves(false), ply);
+                String current_side = white ? "White" : "Black";
+                board.MakeMove(opp_best_move);
+                float eval_delta = Eval(board, !white, ply, opp_best_move);
+                result += eval_delta;
+                //ConsoleHelper.Log("I think that " + current_side + "'s best move is: " + opp_best_move.ToString() + " if I play " + prev.ToString() + " overall eval => " + result.ToString());
+                //ConsoleHelper.Log("Eval delta: " + eval_delta.ToString() + " => " + result.ToString(), false,ConsoleColor.Red);
+                board.UndoMove(opp_best_move);
+            }
         }
 
         return result;
