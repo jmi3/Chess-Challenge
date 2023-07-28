@@ -12,20 +12,17 @@ public class MMBot : IChessBot
             return maximising ? float.NegativeInfinity : float.PositiveInfinity;
         }
 
-        Move[] moves = board.GetLegalMoves();
+        Move[] moves = board.GetLegalMoves();   // TODO: sort the moves list
         float currBest = maximising ? float.NegativeInfinity : float.PositiveInfinity;
-        Move bestMove = Move.NullMove;   // TODO: sort the moves list
 
         foreach (Move m in moves) {
             board.MakeMove(m);
             float eval = MMSearch(board, depth - 1, !maximising);
             if (maximising && eval > currBest) {
                 currBest = eval;
-                bestMove = m;
             }
             else if (!maximising && eval < currBest) {
                 currBest = eval;
-                bestMove = m;
             }
 
             board.UndoMove(m);
