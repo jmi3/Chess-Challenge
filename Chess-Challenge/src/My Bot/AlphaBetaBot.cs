@@ -65,6 +65,62 @@ public class AlphaBetaBot : IChessBot
         return bestEval;
     }
 
+    public float AlphaBetaSearch2(Board board, int depth, float alpha, float beta, bool maximising) {
+        if (depth == 0 || board.IsInCheckmate()) {
+            return Eval(board);
+        }
+
+        // Ranked list of moves
+        List<Move> moves = board.GetLegalMoves().ToList().OrderByDescending(m => (maximising ? 1 : -1) * MEval(m)).ToList();
+
+        // Starting point
+        float localAlpha = alpha;
+        float localBeta = beta;
+        float bestScore = float.NaN;
+
+        if (maximising) {
+            bestScore = float.NegativeInfinity;
+            foreach (Move futureMove in moves) {
+                // set up hypothetical state
+                board.MakeMove(futureMove);
+
+                float eval = AlphaBetaSearch2(board, depth - 1, localAlpha, localBeta, !maximising);
+                bestScore = eval > bestScore ? eval : bestScore;
+                if (bestScore > localBeta) {
+                    // remember to restore previous state
+                    board.UndoMove(futureMove);
+                    break;
+                }
+                // keep track of search maximum
+                localAlpha = bestScore > localAlpha ? bestScore : localAlpha;
+                // remember to restore previous state
+                board.UndoMove(futureMove);
+            }
+            return bestScore;
+        }
+        else {
+            bestScore = float.PositiveInfinity;
+            foreach(Move futureMove in moves) {
+                // set up hypothetical state
+                board.MakeMove(futureMove);
+
+                float eval = AlphaBetaSearch2(board, depth - 1, localAlpha, localBeta, !maximising);
+                bestScore = eval < bestScore ? eval : bestScore;
+                if (bestScore < localAlpha) {
+                    // remember to restore previous state
+                    board.UndoMove(futureMove);
+                    break;
+                }
+                // keep track of search minimum
+                localBeta = bestScore < localBeta ? bestScore : localBeta;
+                // remember to restore previous state
+                board.UndoMove(futureMove);
+            }
+        }
+
+        return bestScore;
+    }
+
     public Move Think(Board board, Timer timer)
     {
         // maximising depends on which side we're playing
@@ -84,11 +140,11 @@ public class AlphaBetaBot : IChessBot
         foreach (Move currMove in moves) {
             board.MakeMove(currMove);
             // we've made our move, so start by eval.ng opponent's pos.n
-            float currEval = AlphaBetaSearch( board
-                                            , searchDepth
-                                            , !maximising ? float.NegativeInfinity : float.PositiveInfinity
-                                            , !maximising ? float.PositiveInfinity : float.NegativeInfinity
-                                            , !maximising
+            float currEval = AlphaBetaSearch2( board
+                                             , searchDepth
+                                             , float.NegativeInfinity
+                                             , float.PositiveInfinity
+                                             , maximising
             );
 
             // We need to start somewhere
