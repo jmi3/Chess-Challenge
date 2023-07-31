@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application; //DELETE
 using System;
+using static System.Math;
 
 namespace Bots;
 
@@ -23,7 +24,7 @@ public class SymmetricEvalBot : IChessBot
         if(moves.Length <= 0) { return new Move(); }
         bool white = board.IsWhiteToMove;
 
-        (Move move, float eval) result = Minimax(board, PLYDEPTH, true, white);
+        (Move move, float eval) result = Minimax(board, PLYDEPTH, -float.MaxValue, float.MaxValue, true, white);
 
         String current_side = white ? "White" : "Black";
         ConsoleHelper.Log(result.move.ToString() + " was the best move for " + current_side + " found with eval: " + Math.Abs(result.eval).ToString());
@@ -44,7 +45,7 @@ public class SymmetricEvalBot : IChessBot
         //Multiply the material differences by their respective weights.
         float result = (9 * Q) +
             (5 * R) +
-            (3 * N) + (3.2f * B) + //NB the higher weighting for bishops!
+            (3 * N) + (3.2f * B) + //N.B. the higher weighting for bishops!
             (1 * P);
 
         if(!white) { result *= -1; }
@@ -52,8 +53,7 @@ public class SymmetricEvalBot : IChessBot
         return result;
     }
 
-    //TODO: Alpha Beta Pruning
-    private (Move move, float eval) Minimax(Board board, int depth, bool maximising, bool white)
+    private (Move move, float eval) Minimax(Board board, int depth, float alpha, float beta, bool maximising, bool white)
     {
         Move[] moves = board.GetLegalMoves(false);
         if(depth <= 0) return (moves[0], Eval(board, white));
@@ -67,18 +67,18 @@ public class SymmetricEvalBot : IChessBot
             foreach(Move move in moves) 
             {
                 board.MakeMove(move);
-                eval = Minimax(board, depth - 1, false, white).eval;
+                eval = Minimax(board, depth - 1, alpha, beta, false, white).eval;
                 board.UndoMove(move);
                 if(eval > max_eval)
                 {
                     max_eval = eval;
                     best_move = move;
                 }
-                //alpha = max(alpha, eval);
-                //if (beta <= alpha)
-                //{
-                //    break;
-                //}
+                alpha = Max(alpha, eval);
+                if (beta <= alpha)
+                {
+                    break; //As seb once said: "Snip"
+                }
 
             }
             return (best_move, max_eval);
@@ -88,18 +88,18 @@ public class SymmetricEvalBot : IChessBot
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                eval = Minimax(board, depth - 1, true, white).eval;
+                eval = Minimax(board, depth - 1, alpha, beta, true, white).eval;
                 board.UndoMove(move);
                 if(eval < min_eval)
                 {
                     min_eval = eval;
                     best_move = move;
                 }
-                //beta = min(beta, eval);
-                //if(beta <= alpha)
-                //{
-                //    break;
-                //}
+                beta = Min(beta, eval);
+                if (beta <= alpha)
+                {
+                    break;
+                }
             }
             return (best_move, min_eval);
         }
