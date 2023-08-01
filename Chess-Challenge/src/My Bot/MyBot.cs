@@ -2,14 +2,7 @@
 using ChessChallenge.Application;
 public class MyBot : IChessBot
 {
-    bool MoveIsCheckmate(Board board, Move move)
-    {
-<<<<<<< Updated upstream
-        board.MakeMove(move);
-        bool isMate = board.IsInCheckmate();
-        board.UndoMove(move);
-        return isMate;
-    }
+   
     public Move Think(Board b, Timer timer)
     {
         Move[] AllMoves = b.GetLegalMoves();
@@ -36,7 +29,24 @@ public class MyBot : IChessBot
             }
             b.UndoMove(move);
         }
+        return AllMoves[0];
     }
+    
+    /*
+    
+    Evaluation section
+    
+    */
+
+    bool MoveIsCheckmate(Board board, Move move)
+    {
+        board.MakeMove(move);
+        bool isMate = board.IsInCheckmate();
+        board.UndoMove(move);
+        return isMate;
+    }
+
+
     public float EvalMaterial(Board board, bool white)
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
