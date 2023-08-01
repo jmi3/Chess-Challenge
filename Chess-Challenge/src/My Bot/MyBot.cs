@@ -1,35 +1,13 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application;
+
+namespace Bots;
 public class MyBot : IChessBot
 {
    
     public Move Think(Board board, Timer timer)
     {
-        Move[] AllMoves = board.GetLegalMoves();
-        foreach (Move move in AllMoves)
-        {
-            if (MoveIsMate(board, move))
-            {
-                return move;
-            }
-            board.MakeMove(move);
-            Move[] AllMoves2 = board.GetLegalMoves();
-            bool leadsToLoss = false;
-            foreach (Move move2 in AllMoves2)
-            {
-                if (MoveIsMate(board, move2))
-                {
-                    leadsToLoss = true;
-                    break;
-                }
-            }
-            if (leadsToLoss)
-            {
-                continue;
-            }
-            board.UndoMove(move);
-        }
-        return GetBestMoveOnMaterial(board, 2, 0).bestMove;
+        return GetBestMoveOnMaterial(board, 2).bestMove;
     }
     
     /*
@@ -46,20 +24,24 @@ public class MyBot : IChessBot
         return isMate;
     }
 
-    (Move bestMove, float bestEval) GetBestMoveOnMaterial(Board board, int depth, float currentBestEval)
+    (Move bestMove, float bestEval) GetBestMoveOnMaterial(Board board, int depth)
     {
-        float bestEval = 0;
+        float bestEval = 1000;
         float eval;
         Move[] moves = board.GetLegalMoves();
-        Move bestMove = moves[0];
+        Move bestMove = Move.NullMove;
         if (depth > 0)
         {
 
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                eval = GetBestMoveOnMaterial(board, depth - 1, currentBestEval).bestEval;
-                if (eval > bestEval)
+                eval = (-1) * GetBestMoveOnMaterial(board, depth - 1).bestEval;
+                if (bestEval > 999)
+                {
+                    bestEval = eval;
+                }
+                if (eval >= bestEval)
                 {
                     bestEval = eval;
                     bestMove = move;
