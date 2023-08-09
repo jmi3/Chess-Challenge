@@ -2,8 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Bots;
-
+namespace ChessChallenge.Example;
 public class KubaBotV1 : IChessBot
 {
    // public Dictionary<ulong, Tuple<Move, float>> searchedPositions = new Dictionary<ulong, Tuple<Move, float>>();

@@ -292,13 +292,10 @@ namespace ChessChallenge.Application
                 {
                     UpdateBotMatchStats(result);
                     botMatchGameIndex++;
-<<<<<<< Updated upstream
                     
-                    // TODO Change me back later!!
-                    int numGamesToPlay = 20;
-=======
+
                     int numGamesToPlay = botMatchStartFens.Length * 2;
->>>>>>> Stashed changes
+
 
                     if (botMatchGameIndex < numGamesToPlay && autoStartNextBotMatch)
                     {

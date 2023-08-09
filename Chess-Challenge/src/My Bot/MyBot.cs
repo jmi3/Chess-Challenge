@@ -3,7 +3,7 @@ using ChessChallenge.Application;
 using System;
 
 namespace ChessChallenge.Example;
-public class HonzaBotV1 : IChessBot
+public class MyBot : IChessBot
 {
    
     public Move Think(Board board, Timer timer)
