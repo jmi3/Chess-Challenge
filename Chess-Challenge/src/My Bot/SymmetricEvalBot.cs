@@ -7,7 +7,7 @@ namespace Bots;
 
 public class SymmetricEvalBot : IChessBot
 {
-    private const int PLYDEPTH = 2;
+    private const int PLYDEPTH = 3;
     public Move Think(Board board, Timer timer)
     {
         ConsoleHelper.Log("Bot is thinking. Current eval: " + Eval(board, true).ToString(), false, ConsoleColor.Blue);
@@ -53,9 +53,40 @@ public class SymmetricEvalBot : IChessBot
         return result;
     }
 
+    //Aplha and beta to be set to float max vals accordingly
     private (Move move, float eval) Minimax(Board board, int depth, float alpha, float beta, bool maximising, bool white)
     {
         Move[] moves = board.GetLegalMoves(false);
+        if(moves.Length <= 0)
+        {
+            // This is going to get much more confusing at greater depths.
+            ConsoleHelper.Log($"Error accessing a move. No legal moves @ depth {depth}. Resolving...", false, ConsoleColor.Red);
+            if(board.IsInCheckmate())
+            {
+                //Check ply, if odd then this is a good thing! If even then M1 :(
+                if(depth % 2 == 0)
+                {
+                    ConsoleHelper.Log($"-> Opponent has M1", false, ConsoleColor.Red);
+                    if(white) { return (new Move(), -float.MaxValue); } else { return (new Move(), float.MaxValue); }
+                }
+                else
+                {
+                    ConsoleHelper.Log($"-> Opponent is in checkmate!", false, ConsoleColor.Green);
+                    if (white) { return (new Move(), float.MaxValue); } else { return (new Move(), -float.MaxValue); }
+                }
+            }
+            else if(board.IsDraw())
+            {
+                //Returning a random with an eval of zero should make it the most favourable option if losing completely. (I think?)
+                ConsoleHelper.Log($"-> Draw found", false, ConsoleColor.Yellow);
+                return (new Move(), 0);
+            }
+            else
+            {
+                ConsoleHelper.Log($"-> Can't explain depth problem, consult Titan submersible.", true, ConsoleColor.Red);
+            }
+         
+        }
         if(depth <= 0) return (moves[0], Eval(board, white));
 
         Move best_move = moves[0];
