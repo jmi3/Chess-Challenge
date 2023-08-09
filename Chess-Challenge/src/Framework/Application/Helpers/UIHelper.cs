@@ -1,9 +1,7 @@
 ﻿using Raylib_cs;
 using System;
-using System.IO;
 using System.Numerics;
-using System.Collections.Generic;
-using System.Linq;
+using static ChessChallenge.Application.FileHelper;
 
 namespace ChessChallenge.Application
 {
@@ -100,70 +98,10 @@ namespace ChessChallenge.Application
             return pressedThisFrame;
         }
 
-        public static T? Dropdown<T>(IEnumerable<T> values, T selected, Vector2 centre, Vector2 size, ref bool persist)
-        {
-            Rectangle rec = new(centre.X - size.X / 2, centre.Y - size.Y / 2, size.X, size.Y);
-
-            Color normalCol = new(40, 40, 40, 255);
-            Color hoverCol = new(3, 173, 252, 255);
-            Color pressCol = new(2, 119, 173, 255);
-
-            var height = size.Y * (values.Count());
-            Rectangle optionsRec = new(centre.X + size.X / 2, centre.Y - size.Y / 2, size.X, height);
-
-            bool mouseOver = !MouseInRect(rec) ? (persist ? MouseInRect(optionsRec) : false) : true;
-            bool pressed = mouseOver && Raylib.IsMouseButtonDown(MouseButton.MOUSE_BUTTON_LEFT);
-            bool pressedThisFrame = pressed && Raylib.IsMouseButtonPressed(MouseButton.MOUSE_BUTTON_LEFT);
-            int fontSize = ScaleInt(32);
-
-            var col = mouseOver ? hoverCol : normalCol;
-            Color textCol = mouseOver ? Color.WHITE : new Color(180, 180, 180, 255);
-            Raylib.DrawRectangleRec(rec, col);
-
-            DrawText(selected.ToString()!, centre, fontSize, 1, textCol, AlignH.Centre);
-
-            if (mouseOver)
-            {
-                Raylib.DrawRectangleRec(optionsRec, normalCol);
-
-                if (MouseInRect(optionsRec))
-                {
-                    var selectionIndex = (int)Math.Floor((Raylib.GetMouseY() - optionsRec.y) / size.Y);
-                    selectionIndex = Math.Max(0, selectionIndex);
-                    selectionIndex = Math.Min(selectionIndex, values.Count() - 1);
-
-                    col = pressed ? pressCol : hoverCol;
-                    Rectangle selectionRec = new(optionsRec.x, optionsRec.y + selectionIndex * size.Y, size.X, size.Y);
-                    Raylib.DrawRectangleRec(selectionRec, col);
-
-                    if (pressedThisFrame)
-                    {
-                        persist = false;
-                        return values.ElementAt(selectionIndex);
-                    }
-                }
-
-                var offset = 0;
-                foreach (var option in values)
-                {
-                    var hOffset = offset++ * size.Y;
-                    DrawText(option.ToString()!, centre + new Vector2(size.X, hOffset), fontSize, 1, textCol, AlignH.Centre);
-                }
-            }
-
-            persist = mouseOver;
-            return default(T);
-        }
-
         static bool MouseInRect(Rectangle rec)
         {
             Vector2 mousePos = Raylib.GetMousePosition();
             return mousePos.X >= rec.x && mousePos.Y >= rec.y && mousePos.X <= rec.x + rec.width && mousePos.Y <= rec.y + rec.height;
-        }
-
-        public static string GetResourcePath(params string[] localPath)
-        {
-            return Path.Combine(Directory.GetCurrentDirectory(), "resources", Path.Combine(localPath));
         }
 
         public static float Scale(float val, int referenceResolution = referenceResolution)
