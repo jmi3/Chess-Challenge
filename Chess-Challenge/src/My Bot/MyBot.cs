@@ -5,36 +5,48 @@ using System;
 namespace ChessChallenge.Example;
 public class MyBot : IChessBot
 {
-   
+
     public Move Think(Board board, Timer timer)
     {
-         
-        Move move = GetBestMoveOnMaterial(board, 3).move;
-        bool draw = IsADraw(board, move);
-        if (draw)
-        {
-            Console.WriteLine("making it a draw intentionally");
-        }
-        if(MoveIsMate(board, move))
-        {
-            Console.WriteLine("gonna mate that little piece of shit");
-            return move;
-        }
+
+        Move move = GetBestMove(board, 3);
         if (MoveIsValid(board, move) && !move.IsNull)
-        {   
-            if(draw == false)
+        {
+
+            bool draw = IsADraw(board, move);
+            if (draw)
+            {
+                Console.WriteLine("Not making it a draw intentionally");
+                return randomMove(board);
+            }
+            if (MoveIsMate(board, move))
+            {
+                Console.WriteLine("Gonna mate that little piece of shit");
+                return move;
+            }
+            if (MoveIsValid(board, move) && !move.IsNull)
             {
                 return move;
             }
+            return move;
         }
         return randomMove(board);
     }
+
+
+    /*
+     * Picks a random move from all possible moves.
+    */
     Move randomMove(Board board)
     {
         Move[] moves = board.GetLegalMoves();
         Random random = new Random();
         return moves[random.Next(moves.Length)];
     }
+
+ /*   
+     * Determines, whether the move leads to already seen position or not.Useles...? @-@
+  */   
     bool IsADraw(Board board, Move move)
     {
         board.MakeMove(move);
@@ -43,12 +55,15 @@ public class MyBot : IChessBot
         return isadraw;
     }
 
-    /*
-    
+/*
+
     Evaluation section
     
-    */
-    bool MoveIsValid(Board board, Move move)
+    
+
+* Determines, whether the move is valid.
+*/
+bool MoveIsValid(Board board, Move move)
     {
 
         try
@@ -62,7 +77,12 @@ public class MyBot : IChessBot
             return false;
         }
     }
-    bool MoveIsMate(Board board, Move move)
+
+/*
+* Determines, whether the move is mate.
+
+*/
+bool MoveIsMate(Board board, Move move)
     {
         board.MakeMove(move);
         bool isMate = board.IsInCheckmate();
@@ -70,45 +90,75 @@ public class MyBot : IChessBot
         return isMate;
     }
 
-    (Move move, float eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
+    Move GetBestMove(Board board, int depth, float prevBestEval = float.NegativeInfinity)
     {
-        (Move move, float eval, bool wasMate) bestResult = (Move.NullMove, float.NegativeInfinity, false);
-        
-        (Move move, float eval, bool wasMate) result;
-        
+        float bestEval = float.NegativeInfinity;
+
+        float eval;
+        Move resultMove;
         Move[] moves = board.GetLegalMoves();
-        
+        return randomMove(board);
+    }
+
+    float[] InDepthEval(Board board, Move[] moves, int depth, float currBest = float.NegativeInfinity)
+    {
+
+        float[] movesEval = new float[moves.Length];
+        Move move;
         if (depth > 0)
         {
-            foreach (Move move in moves)
+            for (int i = 0; i < moves.Length; i++)
             {
+                move = moves[i];
                 board.MakeMove(move);
-                result = GetBestMoveOnMaterial(board, depth - 1);
-                result.eval *= -1;
-                result.move = move;
-                board.UndoMove(move);
-                if (result.eval > bestResult.eval)
+                if (board.IsInCheckmate())
                 {
-                    bestResult = result;
+                    board.UndoMove(move);
+                    movesEval[i] = float.PositiveInfinity;
                 }
+
+                else if (board.IsInCheck())
+                {
+                    depth++;
+                }
+
+                else
+                {
+                    movesEval[i] = InDepthEval(board, board.GetLegalMoves(), depth - 1);
+
+                    movesEval[i] *= -1;
+
+                    board.UndoMove(move);
+                    if (movesEval[i] < currBest)
+                    {
+                        movesEval[i] = float.NaN;
+                    }
+                }
+
 
             }
         }
         else if (depth == 0)
         {
-            foreach (Move move in moves)
+            for (int i = 0; i < moves.Length; i++)
             {
+                move = moves[i];
                 board.MakeMove(move);
-                result = (move, (-1)*Eval(board, board.IsWhiteToMove), board.IsInCheckmate());
+                movesEval[i] = (-1) * Eval(board, board.IsWhiteToMove);
+                if (board.IsInCheckmate())
+                {
+                    movesEval[i] = float.NegativeInfinity;
+                    board.UndoMove(move);
+                }
                 board.UndoMove(move);
 
-                if (result.eval > bestResult.eval)
+                if (movesEval[i] < currBest && MoveIsValid(board, move))
                 {
-                    bestResult = result;
+                    movesEval[i] = float.NaN;
                 }
             }
         }
-        return bestResult;
+        return movesEval;
     }
 
     float EvalMaterial(Board board, bool white)
@@ -123,17 +173,17 @@ public class MyBot : IChessBot
         //Multiply the material differences by their respective weights.
         float result = (9 * Q) +
             (5 * R) +
-            (3 * N) + (3 * B) + 
-            (1 * P) + (12*K);
-        
+            (3 * N) + (3 * B) +
+            (1 * P) + (12 * K);
+
         return result;
     }
     public float Eval(Board board, bool white)
     {
         float result = EvalMaterial(board, white);
-        
-        
-        if(!white)
+
+
+        if (!white)
         {
             result *= -1;
         }
@@ -142,3 +192,4 @@ public class MyBot : IChessBot
 
 
 }
+

@@ -16,7 +16,7 @@ public class KubaBotV1 : IChessBot
         */
         Random rnd = new Random();
         List<float> Weighths = new List<float> { 9f, 1f, 2f, 9f, 5f, 5f, -6f, -10f};
-        Move moveToDo = FindMove(board, 2, Weighths, float.PositiveInfinity, timer).bestMove;
+        Move moveToDo = FindMove(board, 3, Weighths, float.PositiveInfinity, timer).bestMove;
         if (moveToDo == Move.NullMove || !MoveIsValid(board, moveToDo))
         {
             moveToDo = board.GetLegalMoves()[rnd.Next(board.GetLegalMoves().Length)];
