@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-
+using System;
 namespace ChessChallenge.Chess
 {
     // Represents the current state of the board during a game.
@@ -108,7 +108,7 @@ namespace ChessChallenge.Chess
         {
             BitBoardUtility.ToggleSquares(ref pieceBitboards[piece], startSquare, targetSquare);
             BitBoardUtility.ToggleSquares(ref colourBitboards[MoveColourIndex], startSquare, targetSquare);
-
+            
             pieceLists[piece].MovePiece(startSquare, targetSquare);
             Square[startSquare] = PieceHelper.None;
             Square[targetSquare] = piece;
