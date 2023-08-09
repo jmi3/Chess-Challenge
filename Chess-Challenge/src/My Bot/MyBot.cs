@@ -6,8 +6,11 @@ using System.Collections.Generic;
 
 >>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
 namespace Bots;
 
+=======
+>>>>>>> Stashed changes
 public class MyBot : IChessBot
 {
 <<<<<<< Updated upstream
