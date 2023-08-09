@@ -7,19 +7,20 @@ namespace ChessChallenge.Application
     {
         // public event Action<Chess.Core.Move>? MoveChosen;
 
-        public readonly ChallengeController.PlayerArgs PlayerArgs;
+        public readonly ChallengeController.PlayerType PlayerType;
         public readonly IChessBot? Bot;
         public readonly HumanPlayer? Human;
 
         double secondsElapsed;
-        int baseTimeMS;
+        int incrementAddedMs;
+        int baseTimeMs;
 
-        public ChessPlayer(object instance, ChallengeController.PlayerArgs args, int baseTimeMS = int.MaxValue)
+        public ChessPlayer(object instance, ChallengeController.PlayerType type, int baseTimeMs = int.MaxValue)
         {
-            this.PlayerArgs = args;
+            this.PlayerType = type;
             Bot = instance as IChessBot;
             Human = instance as HumanPlayer;
-            this.baseTimeMS = baseTimeMS;
+            this.baseTimeMs = baseTimeMs;
 
         }
 
@@ -39,19 +40,24 @@ namespace ChessChallenge.Application
             secondsElapsed += dt;
         }
 
+        public void AddIncrement(int incrementMs)
+        {
+            incrementAddedMs += incrementMs;
+        }
+
         public int TimeRemainingMs
         {
             get
             {
-                if (baseTimeMS == int.MaxValue)
+                if (baseTimeMs == int.MaxValue)
                 {
-                    return baseTimeMS;
+                    return baseTimeMs;
                 }
-                return (int)Math.Ceiling(Math.Max(0, baseTimeMS - secondsElapsed * 1000.0));
+                return (int)Math.Ceiling(Math.Max(0, baseTimeMs - secondsElapsed * 1000.0 + incrementAddedMs));
             }
         }
 
-        public void SubscribeToMoveChosenEventIfHuman(Action<ChessChallenge.Chess.Move> action)
+        public void SubscribeToMoveChosenEventIfHuman(Action<Chess.Move> action)
         {
             if (Human != null)
             {
