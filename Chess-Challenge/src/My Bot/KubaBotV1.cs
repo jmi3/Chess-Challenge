@@ -2,12 +2,9 @@
 using System;
 using System.Collections.Generic;
 
-<<<<<<< Updated upstream
 namespace Bots;
 
-=======
->>>>>>> Stashed changes
-public class MyBot : IChessBot
+public class KubaBotV1 : IChessBot
 {
    // public Dictionary<ulong, Tuple<Move, float>> searchedPositions = new Dictionary<ulong, Tuple<Move, float>>();
 
