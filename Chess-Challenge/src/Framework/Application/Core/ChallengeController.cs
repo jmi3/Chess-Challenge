@@ -396,13 +396,14 @@ namespace ChessChallenge.Application
                 {
                     UpdateBotMatchStats(result);
                     botMatchGameIndex++;
-                    
+                    botAPlaysWhite = !botAPlaysWhite;
                     // TODO Change me back later!!
                     int numGamesToPlay = 20;
-
+                    string ASide = !botAPlaysWhite ? "white" : "black";
+                    string BSide = botAPlaysWhite ? "white" : "black";
+                    Console.WriteLine($"Starting new match: {GetPlayerName(PlayerWhite)} ({ASide}) vs {GetPlayerName(PlayerBlack)} ({BSide})");
                     if (botMatchGameIndex < numGamesToPlay && autoStartNextBotMatch)
                     {
-                        botAPlaysWhite = !botAPlaysWhite;
                         const int startNextGameDelayMs = 600;
                         System.Timers.Timer autoNextTimer = new(startNextGameDelayMs);
                         int originalGameID = gameID;
@@ -434,7 +435,7 @@ namespace ChessChallenge.Application
         {
             UpdateStats(BotStatsA, botAPlaysWhite);
             UpdateStats(BotStatsB, !botAPlaysWhite);
-
+            
             void UpdateStats(BotMatchStats stats, bool isWhiteStats)
             {
                 // Draw
@@ -520,7 +521,7 @@ namespace ChessChallenge.Application
             }
             BotStatsA = new BotMatchStats(nameA);
             BotStatsB = new BotMatchStats(nameB);
-            botAPlaysWhite = true;
+            botAPlaysWhite = false;
             Log($"Starting new match: {nameA} vs {nameB}", false, ConsoleColor.Blue);
             StartNewGame(argsA, argsA);
         }

@@ -3,7 +3,6 @@ using ChessChallenge.Application; //DELETE
 using System;
 using static System.Math;
 
-namespace Bots;
 
 public class SymmetricEvalBot : IChessBot
 {
