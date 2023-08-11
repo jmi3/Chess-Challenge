@@ -3,7 +3,7 @@ using ChessChallenge.Application;
 using System;
 
 namespace ChessChallenge.Example;
-public class HonzaBotV1 : IChessBot
+public class HonzaBot_v1_0 : IChessBot
 {
     // HonzaBot v1.0
 

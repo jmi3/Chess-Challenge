@@ -4,15 +4,19 @@ using System;
 using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class EvilBot : IChessBot
+public class HonzaBot_v2_0 : IChessBot
 {
+    // HonzaBot v2.0
+    // Uses fail-hard Alpha-Beta pruning
+    // Has very naive ordering (captures first)
 
     public Move Think(Board board, Timer timer)
     {
         Move move = GetTheMove(board, timer);
-
+        
         return move;
     }
+
 
     public Move GetTheMove(Board board, Timer timer)
     {
@@ -63,11 +67,11 @@ public class EvilBot : IChessBot
         Move[] captureMoves = board.GetLegalMoves(true);
         Move[] otherMoves = board.GetLegalMoves();
         List<Move> moves = new List<Move>();
-        for (int i = 0; i < captureMoves.Length; i++)
+        for (int i =0; i<captureMoves.Length; i++)
         {
             moves.Add(captureMoves[i]);
         }
-
+        
         for (int i = 0; i < otherMoves.Length; i++)
         {
             if (!moves.Contains(otherMoves[i]))
@@ -83,6 +87,7 @@ public class EvilBot : IChessBot
     {
         if (depth == 0)
         {
+
             return (Eval(board, white), 1);
         }
         List<Move> moves = OrderMoves(board);
@@ -98,7 +103,10 @@ public class EvilBot : IChessBot
                 best = Math.Max(eval, best);
                 board.UndoMove(move);
                 positionsViewed += temp;
-
+                if (move.IsPromotion && move.PromotionPieceType != PieceType.Queen)
+                {
+                    eval -= 2;
+                }
                 if (best > max)
                 {
                     break;
@@ -118,7 +126,10 @@ public class EvilBot : IChessBot
                 (eval, temp) = OrderABSearch(board, depth - 1, false, min, max);
                 best = Math.Min(eval, best);
                 board.UndoMove(move);
-
+                if (move.IsPromotion && move.PromotionPieceType!=PieceType.Queen)
+                {
+                    eval += 2;
+                }
                 positionsViewed += temp;
                 if (best < min)
                 {
@@ -157,8 +168,7 @@ public class EvilBot : IChessBot
             return 0;
         }
         float result = EvalMaterial(board, white);
-        if (board.IsInCheckmate())
-        {
+        if (board.IsInCheckmate()) {
             result += white ? 100 : -100;
         }
 
@@ -167,7 +177,7 @@ public class EvilBot : IChessBot
     }
 
 
-
+  
 
 }
 
