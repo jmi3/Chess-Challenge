@@ -1,169 +1,145 @@
-﻿/*using ChessChallenge.API;
-using System;
-
-namespace ChessChallenge.Example
-{
-    // A simple bot that can spot mate in one, and always captures the most valuable piece it can.
-    // Plays randomly otherwise.
-    public class EvilBot : IChessBot
-    {
-        // Piece values: null, pawn, knight, bishop, rook, queen, king
-        int[] pieceValues = { 0, 100, 300, 300, 500, 900, 10000 };
-
-        public Move Think(Board board, Timer timer)
-        {
-            Move[] allMoves = board.GetLegalMoves();
-
-            // Pick a random move to play if nothing better is found
-            Random rng = new();
-            Move moveToPlay = allMoves[rng.Next(allMoves.Length)];
-            int highestValueCapture = 0;
-
-            foreach (Move move in allMoves)
-            {
-                // Always play checkmate in one
-                if (MoveIsCheckmate(board, move))
-                {
-                    moveToPlay = move;
-                    break;
-                }
-
-                // Find highest value capture
-                Piece capturedPiece = board.GetPiece(move.TargetSquare);
-                int capturedPieceValue = pieceValues[(int)capturedPiece.PieceType];
-
-                if (capturedPieceValue > highestValueCapture)
-                {
-                    moveToPlay = move;
-                    highestValueCapture = capturedPieceValue;
-                }
-            }
-
-            return moveToPlay;
-        }
-
-        // Test if this move gives checkmate
-        bool MoveIsCheckmate(Board board, Move move)
-        {
-            board.MakeMove(move);
-            bool isMate = board.IsInCheckmate();
-            board.UndoMove(move);
-            return isMate;
-        }
-    }
-}*/
-using ChessChallenge.API;
+﻿using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
+using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class EvilBot: IChessBot
+public class EvilBot : IChessBot
 {
 
     public Move Think(Board board, Timer timer)
     {
+        Console.WriteLine($">>>> Current eval: {Eval(board, board.IsWhiteToMove)}");
+        Move move = GetTheMove(board, timer);
 
-        Move move = GetBestMoveOnMaterial(board, 3).move;
-        bool draw = IsADraw(board, move);
-        if (draw)
+        return move;
+    }
+
+    public Move GetTheMove(Board board, Timer timer)
+    {
+
+        float bestEval;
+
+        float eval, max = float.PositiveInfinity, min = float.NegativeInfinity;
+
+        bool white = board.IsWhiteToMove;
+
+        int positionsViewed = 0;
+
+        int depth = 4;
+
+        (Move move, eval, positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
+
+        Console.WriteLine($">>>> Searched: {positionsViewed}");
+        return move;
+    }
+
+    List<Move> OrderMoves(Board board)
+    {
+        Move[] otherMoves = board.GetLegalMoves();
+        List<Move> moves = new List<Move>(board.GetLegalMoves(true));
+
+        for (int i = 0; i < otherMoves.Length; i++)
         {
-            Console.WriteLine("making it a draw intentionally");
-        }
-        if (MoveIsMate(board, move))
-        {
-            Console.WriteLine("gonna mate that little piece of shit");
-            return move;
-        }
-        if (MoveIsValid(board, move) && !move.IsNull)
-        {
-            if (draw == false)
+            if (!moves.Contains(otherMoves[i]))
             {
-                return move;
+                moves.Add(otherMoves[i]);
             }
         }
-        return randomMove(board);
-    }
-    Move randomMove(Board board)
-    {
-        Move[] moves = board.GetLegalMoves();
-        Random random = new Random();
-        return moves[random.Next(moves.Length)];
-    }
-    bool IsADraw(Board board, Move move)
-    {
-        board.MakeMove(move);
-        bool isadraw = board.IsDraw();
-        board.UndoMove(move);
-        return isadraw;
+
+        return moves;
     }
 
-    /*
-    
-    Evaluation section
-    
-    */
-    bool MoveIsValid(Board board, Move move)
+    (Move bestMove, float eval, int count) OrderABSearch(Board board, int depth, bool white, bool maximizing, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
     {
 
-        try
+        List<Move> moves = OrderMoves(board);
+
+        if (moves.Count == 0)
         {
-            board.MakeMove(move);
-            board.UndoMove(move);
-            return true;
+
+            if (board.IsDraw())
+            {
+                return (Move.NullMove, 0, 1);
+            }
+
+            if (board.IsInCheckmate())
+            {
+                if (maximizing)
+                {
+                    return (Move.NullMove, float.MinValue, 1);
+                }
+                else
+                {
+                    return (Move.NullMove, float.MaxValue, 1);
+                }
+            }
+
         }
-        catch (Exception)
+
+        if (depth == 0)
         {
-            return false;
+            return (Move.NullMove, Eval(board, white), 1);
         }
-    }
-    bool MoveIsMate(Board board, Move move)
-    {
-        board.MakeMove(move);
-        bool isMate = board.IsInCheckmate();
-        board.UndoMove(move);
-        return isMate;
-    }
-
-    (Move move, double eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
-    {
-        (Move move, double eval, bool wasMate) bestResult = (Move.NullMove, double.NegativeInfinity, false);
-
-        (Move move, double eval, bool wasMate) result;
-
-        Move[] moves = board.GetLegalMoves();
-
-        if (depth > 0)
+        Move bestMove = Move.NullMove, tempMove;
+        float bestEval, eval;
+        int positionsViewed = 0, temp = 0;
+        if (maximizing)
         {
+            bestEval = float.MinValue;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                result = GetBestMoveOnMaterial(board, depth - 1);
-                result.eval *= -1;
-                result.move = move;
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
                 board.UndoMove(move);
-                if (result.eval > bestResult.eval)
+
+                positionsViewed += temp;
+
+                if (eval > bestEval)
                 {
-                    bestResult = result;
+                    bestEval = eval;
+                    bestMove = move;
                 }
 
+                if (min > bestEval)
+                {
+                    break;
+                }
+
+                min = Math.Max(min, eval);
+
             }
+
+            return (bestMove, bestEval, positionsViewed);
         }
-        else if (depth == 0)
+        else
         {
+            bestEval = float.MaxValue;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                result = (move, (-1) * Eval(board, board.IsWhiteToMove), board.IsInCheckmate());
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, true, min, max);
                 board.UndoMove(move);
 
-                if (result.eval > bestResult.eval)
+                positionsViewed += temp;
+                if (eval < bestEval)
                 {
-                    bestResult = result;
+                    bestEval = eval;
+                    bestMove = move;
                 }
+
+                if (max < bestEval)
+                {
+                    break;
+                }
+                max = Math.Min(max, bestEval);
             }
+            return (bestMove, bestEval, positionsViewed);
         }
-        return bestResult;
     }
+
+
+
 
     float EvalMaterial(Board board, bool white)
     {
@@ -175,54 +151,32 @@ public class EvilBot: IChessBot
         int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
-        float result = (9 * Q) +
-            (5 * R) +
+        float result =
+            (9 * Q) + (5 * R) +
             (3 * N) + (3 * B) +
             (1 * P) + (12 * K);
 
         return result;
     }
-    double DistanceFromCentre(Square square)
+    public float Eval(Board board, bool white)
     {
-        return Math.Sqrt(Math.Pow(square.File - 3.5f, 2f) + Math.Pow(square.Rank - 3.5f, 2f));
-    }
-    double EvalPiecePositions(Board board)
-    {
-        double result = 0;
-        ulong piecesBitboard = board.AllPiecesBitboard;
-        int numberOfPieces = BitboardHelper.GetNumberOfSetBits(piecesBitboard);
-        while (piecesBitboard > 0)
+        if (board.IsDraw())
         {
-            int isWhite = 1;
-            Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
-            Piece currentPiece = board.GetPiece(currentSquare);
-            if (!currentPiece.IsWhite)
-            {
-                isWhite = -1;
-            }
-            if (currentPiece.IsKing)
-            {
-                result += DistanceFromCentre(currentSquare) * isWhite * 100 / board.PlyCount;
-            }
-            if (currentPiece.IsKnight)
-            {
-                result += DistanceFromCentre(currentSquare) * isWhite;
-            }
-
+            return 0;
         }
-        return result;
-    }
-    public double Eval(Board board, bool white)
-    {
-        double result = EvalMaterial(board, white);
-
-
-        if (!white)
+        float result = EvalMaterial(board, white);
+        if (board.IsInCheckmate())
         {
-            result *= -1;
+            result += white ? 100 : -100;
         }
+
         return result;
+
     }
+
+
 
 
 }
+
+
