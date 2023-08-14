@@ -1,4 +1,4 @@
-﻿using ChessChallenge.API;
+﻿/*using ChessChallenge.API;
 using System;
 
 namespace ChessChallenge.Example
@@ -51,38 +51,57 @@ namespace ChessChallenge.Example
             return isMate;
         }
     }
-}
-/*using ChessChallenge.API;
+}*/
+using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
 
-public class EvilBot : IChessBot
+namespace ChessChallenge.Example;
+public class EvilBot: IChessBot
 {
 
     public Move Think(Board board, Timer timer)
     {
+
+        Move move = GetBestMoveOnMaterial(board, 3).move;
+        bool draw = IsADraw(board, move);
+        if (draw)
+        {
+            Console.WriteLine("making it a draw intentionally");
+        }
+        if (MoveIsMate(board, move))
+        {
+            Console.WriteLine("gonna mate that little piece of shit");
+            return move;
+        }
+        if (MoveIsValid(board, move) && !move.IsNull)
+        {
+            if (draw == false)
+            {
+                return move;
+            }
+        }
+        return randomMove(board);
+    }
+    Move randomMove(Board board)
+    {
         Move[] moves = board.GetLegalMoves();
         Random random = new Random();
         return moves[random.Next(moves.Length)];
-    
-        *//*Move move = GetBestMoveOnMaterial(board, 3).move;
-        if (MoveIsValid(board, move) && !move.IsNull)
-        {
-            return move;
-        }
-        else
-        {
-            Move[] moves = board.GetLegalMoves();
-            Random random = new Random();
-            return moves[random.Next(moves.Length)];
-        }*//*
+    }
+    bool IsADraw(Board board, Move move)
+    {
+        board.MakeMove(move);
+        bool isadraw = board.IsDraw();
+        board.UndoMove(move);
+        return isadraw;
     }
 
-    *//*
+    /*
     
     Evaluation section
     
-    *//*
+    */
     bool MoveIsValid(Board board, Move move)
     {
 
@@ -105,11 +124,11 @@ public class EvilBot : IChessBot
         return isMate;
     }
 
-    (Move move, float eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
+    (Move move, double eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
     {
-        (Move move, float eval, bool wasMate) bestResult = (Move.NullMove, float.NegativeInfinity, false);
+        (Move move, double eval, bool wasMate) bestResult = (Move.NullMove, double.NegativeInfinity, false);
 
-        (Move move, float eval, bool wasMate) result;
+        (Move move, double eval, bool wasMate) result;
 
         Move[] moves = board.GetLegalMoves();
 
@@ -153,19 +172,49 @@ public class EvilBot : IChessBot
         int B = board.GetPieceList(PieceType.Bishop, true).Count - board.GetPieceList(PieceType.Bishop, false).Count;
         int R = board.GetPieceList(PieceType.Rook, true).Count - board.GetPieceList(PieceType.Rook, false).Count;
         int Q = board.GetPieceList(PieceType.Queen, true).Count - board.GetPieceList(PieceType.Queen, false).Count;
-        //int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
+        int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
         float result = (9 * Q) +
             (5 * R) +
             (3 * N) + (3 * B) +
-            (1 * P);
+            (1 * P) + (12 * K);
 
         return result;
     }
-    public float Eval(Board board, bool white)
+    double DistanceFromCentre(Square square)
     {
-        float result = EvalMaterial(board, white);
+        return Math.Sqrt(Math.Pow(square.File - 3.5f, 2f) + Math.Pow(square.Rank - 3.5f, 2f));
+    }
+    double EvalPiecePositions(Board board)
+    {
+        double result = 0;
+        ulong piecesBitboard = board.AllPiecesBitboard;
+        int numberOfPieces = BitboardHelper.GetNumberOfSetBits(piecesBitboard);
+        while (piecesBitboard > 0)
+        {
+            int isWhite = 1;
+            Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
+            Piece currentPiece = board.GetPiece(currentSquare);
+            if (!currentPiece.IsWhite)
+            {
+                isWhite = -1;
+            }
+            if (currentPiece.IsKing)
+            {
+                result += DistanceFromCentre(currentSquare) * isWhite * 100 / board.PlyCount;
+            }
+            if (currentPiece.IsKnight)
+            {
+                result += DistanceFromCentre(currentSquare) * isWhite;
+            }
+
+        }
+        return result;
+    }
+    public double Eval(Board board, bool white)
+    {
+        double result = EvalMaterial(board, white);
 
 
         if (!white)
@@ -176,4 +225,4 @@ public class EvilBot : IChessBot
     }
 
 
-}*/
+}

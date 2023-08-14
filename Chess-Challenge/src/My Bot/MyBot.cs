@@ -70,11 +70,11 @@ public class MyBot : IChessBot
         return isMate;
     }
 
-    (Move move, float eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
+    (Move move, double eval, bool wasMate) GetBestMoveOnMaterial(Board board, int depth)
     {
-        (Move move, float eval, bool wasMate) bestResult = (Move.NullMove, float.NegativeInfinity, false);
-        
-        (Move move, float eval, bool wasMate) result;
+        (Move move, double eval, bool wasMate) bestResult = (Move.NullMove, double.NegativeInfinity, false);
+
+        (Move move, double eval, bool wasMate) result;
         
         Move[] moves = board.GetLegalMoves();
         
@@ -128,9 +128,27 @@ public class MyBot : IChessBot
         
         return result;
     }
-    public float Eval(Board board, bool white)
+    float AttackedSqares(Board board)
     {
-        float result = EvalMaterial(board, white);
+        int result = 0;
+        ulong piecesBitboard = board.AllPiecesBitboard;
+        while (piecesBitboard > 0)
+        {
+            int white = 1;
+            Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
+            Piece currentPiece = board.GetPiece(currentSquare);
+            if (!currentPiece.IsWhite)
+            {
+                white = -1;
+            }
+            result += BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))*white;
+        }
+        return result/50;
+    }
+
+    public double Eval(Board board, bool white)
+    {
+        double result = EvalMaterial(board, white) + AttackedSqares(board);
         
         
         if(!white)
