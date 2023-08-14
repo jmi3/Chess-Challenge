@@ -121,10 +121,10 @@ public class MyBot : IChessBot
         int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
-        float result = (9 * Q) +
-            (5 * R) +
-            (3 * N) + (3 * B) + 
-            (1 * P) + (12*K);
+        float result = (900 * Q) +
+            (500 * R) +
+            (300 * N) + (300 * B) + 
+            (100 * P) + (3100*K);
         
         return result;
     }
@@ -143,7 +143,7 @@ public class MyBot : IChessBot
             }
             result += BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))*white;
         }
-        return result/50;
+        return result;
     }
 
     public double Eval(Board board, bool white)
