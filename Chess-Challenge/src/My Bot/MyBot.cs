@@ -124,7 +124,7 @@ public class MyBot : IChessBot
         float result = (900 * Q) +
             (500 * R) +
             (300 * N) + (300 * B) + 
-            (100 * P) + (3100*K);
+            (100 * P) + (3100 * K);
         
         return result;
     }
@@ -148,7 +148,7 @@ public class MyBot : IChessBot
 
     public double Eval(Board board, bool white)
     {
-        double result = EvalMaterial(board, white) + AttackedSqares(board);
+        double result = EvalMaterial(board, white) + AttackedSqares(board) * 2;
         
         
         if(!white)
