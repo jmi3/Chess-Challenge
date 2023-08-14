@@ -19,8 +19,8 @@ public class SymmetricEvalBot : IChessBot
 
     private Move GetBestMove(Board board, Move[] moves, int ply)
     {
- 
-        if(moves.Length <= 0) { return new Move(); }
+
+        if (moves.Length <= 0) { return new Move(); }
         bool white = board.IsWhiteToMove;
 
         (Move move, float eval) result = Minimax(board, PLYDEPTH, -float.MaxValue, float.MaxValue, true, white);
@@ -47,7 +47,7 @@ public class SymmetricEvalBot : IChessBot
             (3 * N) + (3.2f * B) + //N.B. the higher weighting for bishops!
             (1 * P);
 
-        if(!white) { result *= -1; }
+        if (!white) { result *= -1; }
 
         return result;
     }
@@ -56,17 +56,17 @@ public class SymmetricEvalBot : IChessBot
     private (Move move, float eval) Minimax(Board board, int depth, float alpha, float beta, bool maximising, bool white)
     {
         Move[] moves = board.GetLegalMoves(false);
-        if(moves.Length <= 0)
+        if (moves.Length <= 0)
         {
             // This is going to get much more confusing at greater depths.
             ConsoleHelper.Log($"Error accessing a move. No legal moves @ depth {depth}. Resolving...", false, ConsoleColor.Red);
-            if(board.IsInCheckmate())
+            if (board.IsInCheckmate())
             {
                 //Check ply, if odd then this is a good thing! If even then M1 :(
-                if(depth % 2 == 0)
+                if (depth % 2 == 0)
                 {
                     ConsoleHelper.Log($"-> Opponent has M1", false, ConsoleColor.Red);
-                    if(white) { return (new Move(), -float.MaxValue); } else { return (new Move(), float.MaxValue); }
+                    if (white) { return (new Move(), -float.MaxValue); } else { return (new Move(), float.MaxValue); }
                 }
                 else
                 {
@@ -74,7 +74,7 @@ public class SymmetricEvalBot : IChessBot
                     if (white) { return (new Move(), float.MaxValue); } else { return (new Move(), -float.MaxValue); }
                 }
             }
-            else if(board.IsDraw())
+            else if (board.IsDraw())
             {
                 //Returning a random with an eval of zero should make it the most favourable option if losing completely. (I think?)
                 ConsoleHelper.Log($"-> Draw found", false, ConsoleColor.Yellow);
@@ -84,22 +84,22 @@ public class SymmetricEvalBot : IChessBot
             {
                 ConsoleHelper.Log($"-> Can't explain depth problem, consult Titan submersible.", true, ConsoleColor.Red);
             }
-         
+
         }
-        if(depth <= 0) return (moves[0], Eval(board, white));
+        if (depth <= 0) return (moves[0], Eval(board, white));
 
         Move best_move = moves[0];
         float eval;
 
-        if(maximising)
+        if (maximising)
         {
             float max_eval = -float.MaxValue;
-            foreach(Move move in moves) 
+            foreach (Move move in moves)
             {
                 board.MakeMove(move);
                 eval = Minimax(board, depth - 1, alpha, beta, false, white).eval;
                 board.UndoMove(move);
-                if(eval > max_eval)
+                if (eval > max_eval)
                 {
                     max_eval = eval;
                     best_move = move;
@@ -112,7 +112,8 @@ public class SymmetricEvalBot : IChessBot
 
             }
             return (best_move, max_eval);
-        } else
+        }
+        else
         {
             float min_eval = float.MaxValue;
             foreach (Move move in moves)
@@ -120,7 +121,7 @@ public class SymmetricEvalBot : IChessBot
                 board.MakeMove(move);
                 eval = Minimax(board, depth - 1, alpha, beta, true, white).eval;
                 board.UndoMove(move);
-                if(eval < min_eval)
+                if (eval < min_eval)
                 {
                     min_eval = eval;
                     best_move = move;

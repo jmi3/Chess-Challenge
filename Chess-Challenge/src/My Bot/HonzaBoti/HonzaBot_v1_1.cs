@@ -3,9 +3,9 @@ using ChessChallenge.Application;
 using System;
 
 namespace ChessChallenge.Example;
-public class HonzaBotV1 : IChessBot
+public class HonzaBot_v1_1 : IChessBot
 {
-   
+    // HonzaBot v1.1
     public Move Think(Board board, Timer timer)
     {
          
@@ -13,19 +13,17 @@ public class HonzaBotV1 : IChessBot
         bool draw = IsADraw(board, move);
         if (draw)
         {
-            Console.WriteLine("making it a draw intentionally");
+            Console.WriteLine("Not making it a draw intentionally");
+            return randomMove(board);
         }
         if(MoveIsMate(board, move))
         {
-            Console.WriteLine("gonna mate that little piece of shit");
+            Console.WriteLine("Gonna mate that little piece of shit");
             return move;
         }
         if (MoveIsValid(board, move) && !move.IsNull)
         {   
-            if(draw == false)
-            {
-                return move;
-            }
+            return move;
         }
         return randomMove(board);
     }
@@ -124,7 +122,7 @@ public class HonzaBotV1 : IChessBot
         float result = (9 * Q) +
             (5 * R) +
             (3 * N) + (3 * B) + 
-            (1 * P) + (12*K);
+            (1 * P) + (12 * K);
         
         return result;
     }
