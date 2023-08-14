@@ -177,8 +177,8 @@ public class NoIdeaWTFWeDoing_TM_v1_3 : IChessBot
 
     public double Eval(Board board, bool white)
     {
+
         double result = EvalMaterial(board, white) + AttackedSqares(board) * 2;
-        
         
         if(!white)
         {
