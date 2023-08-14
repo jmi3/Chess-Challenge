@@ -6,12 +6,10 @@ using System.Collections.Generic;
 namespace ChessChallenge.Example;
 public class EvilBot : IChessBot
 {
-    // HonzaBot v2.0
-    // Uses fail-hard Alpha-Beta pruning
-    // Has very naive ordering (captures first)
 
     public Move Think(Board board, Timer timer)
     {
+        Console.WriteLine($">>>> Current eval: {Eval(board, board.IsWhiteToMove)}");
         Move move = GetTheMove(board, timer);
 
         return move;
@@ -19,57 +17,27 @@ public class EvilBot : IChessBot
 
     public Move GetTheMove(Board board, Timer timer)
     {
-        List<Move> legalMoves = OrderMoves(board);
-        Move move = Move.NullMove;
+
         float bestEval;
 
-        float eval;
+        float eval, max = float.PositiveInfinity, min = float.NegativeInfinity;
+
         bool white = board.IsWhiteToMove;
+
         int positionsViewed = 0;
+
         int depth = 4;
-        if (white)
-        {
-            bestEval = float.NegativeInfinity;
-            for (int i = 0; i < legalMoves.Count; i++)
-            {
-                board.MakeMove(legalMoves[i]);
-                (eval, positionsViewed) = OrderABSearch(board, depth, !white);
-                board.UndoMove(legalMoves[i]);
-                if (eval > bestEval)
-                {
-                    move = legalMoves[i];
-                    bestEval = eval;
-                }
-            }
-        }
-        else
-        {
-            bestEval = float.PositiveInfinity;
-            for (int i = 0; i < legalMoves.Count; i++)
-            {
-                board.MakeMove(legalMoves[i]);
-                (eval, positionsViewed) = OrderABSearch(board, depth, !white);
-                board.UndoMove(legalMoves[i]);
-                if (eval < bestEval)
-                {
-                    move = legalMoves[i];
-                    bestEval = eval;
-                }
-            }
-        }
+
+        (Move move, eval, positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
+
         Console.WriteLine($">>>> Searched: {positionsViewed}");
         return move;
     }
 
     List<Move> OrderMoves(Board board)
     {
-        Move[] captureMoves = board.GetLegalMoves(true);
         Move[] otherMoves = board.GetLegalMoves();
-        List<Move> moves = new List<Move>();
-        for (int i = 0; i < captureMoves.Length; i++)
-        {
-            moves.Add(captureMoves[i]);
-        }
+        List<Move> moves = new List<Move>(board.GetLegalMoves(true));
 
         for (int i = 0; i < otherMoves.Length; i++)
         {
@@ -82,54 +50,91 @@ public class EvilBot : IChessBot
         return moves;
     }
 
-    (float eval, int count) OrderABSearch(Board board, int depth, bool white, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
+    (Move bestMove, float eval, int count) OrderABSearch(Board board, int depth, bool white, bool maximizing, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
     {
+
+        List<Move> moves = OrderMoves(board);
+
+        if (moves.Count == 0)
+        {
+
+            if (board.IsDraw())
+            {
+                return (Move.NullMove, 0, 1);
+            }
+
+            if (board.IsInCheckmate())
+            {
+                if (maximizing)
+                {
+                    return (Move.NullMove, float.MinValue, 1);
+                }
+                else
+                {
+                    return (Move.NullMove, float.MaxValue, 1);
+                }
+            }
+
+        }
+
         if (depth == 0)
         {
-            return (Eval(board, white), 1);
+            return (Move.NullMove, Eval(board, white), 1);
         }
-        List<Move> moves = OrderMoves(board);
-        float best, eval;
-        int positionsViewed = 0, temp;
-        if (white)
+        Move bestMove = Move.NullMove, tempMove;
+        float bestEval, eval;
+        int positionsViewed = 0, temp = 0;
+        if (maximizing)
         {
-            best = float.NegativeInfinity;
+            bestEval = float.MinValue;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                (eval, temp) = OrderABSearch(board, depth - 1, false, min, max);
-                best = Math.Max(eval, best);
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
                 board.UndoMove(move);
+
                 positionsViewed += temp;
 
-                if (best > max)
+                if (eval > bestEval)
+                {
+                    bestEval = eval;
+                    bestMove = move;
+                }
+
+                if (min > bestEval)
                 {
                     break;
                 }
-                min = Math.Max(min, best);
+
+                min = Math.Max(min, eval);
 
             }
 
-            return (best, positionsViewed);
+            return (bestMove, bestEval, positionsViewed);
         }
         else
         {
-            best = float.PositiveInfinity;
+            bestEval = float.MaxValue;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                (eval, temp) = OrderABSearch(board, depth - 1, false, min, max);
-                best = Math.Min(eval, best);
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, true, min, max);
                 board.UndoMove(move);
 
                 positionsViewed += temp;
-                if (best < min)
+                if (eval < bestEval)
+                {
+                    bestEval = eval;
+                    bestMove = move;
+                }
+
+                if (max < bestEval)
                 {
                     break;
                 }
-                max = Math.Min(max, best);
+                max = Math.Min(max, bestEval);
             }
-            return (best, positionsViewed);
+            return (bestMove, bestEval, positionsViewed);
         }
     }
 
