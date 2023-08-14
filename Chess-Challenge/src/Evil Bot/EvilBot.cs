@@ -6,6 +6,9 @@ using System.Collections.Generic;
 namespace ChessChallenge.Example;
 public class EvilBot : IChessBot
 {
+    // HonzaBot v2.0
+    // Uses fail-hard Alpha-Beta pruning
+    // Has very naive ordering (captures first)
 
     public Move Think(Board board, Timer timer)
     {
@@ -23,7 +26,7 @@ public class EvilBot : IChessBot
         float eval;
         bool white = board.IsWhiteToMove;
         int positionsViewed = 0;
-        int depth = 3;
+        int depth = 4;
         if (white)
         {
             bestEval = float.NegativeInfinity;
