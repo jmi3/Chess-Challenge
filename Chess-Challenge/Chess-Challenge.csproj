@@ -29,6 +29,9 @@
     <Compile Update="src\My Bot\HonzaBoti\HonzaBot_v2_0.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
+    <Compile Update="src\My Bot\NoIdeaWTFWeDoing_TM_v2_3.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
     <Compile Update="src\My Bot\NoIdeaWTFWeDoing_TM_v1_3.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
@@ -41,7 +44,7 @@
     <Compile Update="src\Framework\Application\UI\BotBrainCapacityUI.cs">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </Compile>
-    <Compile Update="src\Evil Bot\OGEvilBot.cs">
+    <Compile Update="src\Evil Bot\asfwsad.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
   </ItemGroup>

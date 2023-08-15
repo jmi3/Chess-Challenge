@@ -4,12 +4,12 @@ using System;
 using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class NoIdeaWTFWeDoing_TM_v3_3 : IChessBot
 {
 
     public Move Think(Board board, Timer timer)
     {
-        Console.WriteLine($">>>> Current eval: {Eval(board, board.IsWhiteToMove)} Move: {board.PlyCount / 2}");
+        Console.WriteLine($">>>> Current eval: {Eval(board, board.IsWhiteToMove)} Move: {board.PlyCount/2}");
         Move move = GetTheMove(board, timer);
 
         return move;
@@ -152,13 +152,11 @@ public class MyBot : IChessBot
         //Multiply the material differences by their respective weights.
         double result = (900 * Q) +
             (500 * R) +
-            (300 * N) + (300 * B) +
+            (300 * N) + (300 * B) + 
             (100 * P) + (3100 * K);
-
+        
         return result;
     }
-
-
     double AttackedSqares(Board board)
     {
         int result = 0;
@@ -191,13 +189,12 @@ public class MyBot : IChessBot
             }
             if (currentPiece.IsKing)
             {
-                result += (((currentSquare.File - 3.5) * (currentSquare.File - 3.5)) + ((currentSquare.Rank - 3.5) * (currentSquare.Rank - 3.5))) * white;
+                result += Math.Sqrt((currentSquare.File - 3.5) * (currentSquare.File - 3.5) + (currentSquare.Rank - 3.5) * (currentSquare.Rank - 3.5))*white;
             }
             if (board.PlyCount > 50 && currentPiece.IsPawn)
             {
-                result += (board.PlyCount-50) * (currentSquare.Rank-3.5) * white;
+                result += (board.PlyCount-50) * (currentSquare.Rank-3.5)*white;
             }
-
         }
         return result;
     }
@@ -205,14 +202,13 @@ public class MyBot : IChessBot
     {
         if (board.IsDraw())
         {
-            return board.PlyCount > 30 ? 0 : (white ? 10000 : -10000 );
+            return 0;
         }
         double result = EvalMaterial(board, white) + AttackedSqares(board) * 2 + PiecesPositionEval(board) * 2;
         if (board.IsInCheckmate())
         {
-            result += white ? 100000 : -100000;
+            result += white ? 10000 : -10000;
         }
-
         return result;
     }
 }
