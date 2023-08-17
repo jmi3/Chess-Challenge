@@ -9,28 +9,25 @@ public class MyBot : IChessBot
 
     public Move Think(Board board, Timer timer)
     {
-        Console.WriteLine($">>>> Current eval: {Eval(board, board.IsWhiteToMove)} Move: {board.PlyCount / 2}");
-        Move move = GetTheMove(board, timer);
-
-        return move;
-    }
-
-    public Move GetTheMove(Board board, Timer timer)
-    {
-
-        double bestEval;
-
-        double eval, max = double.MaxValue, min = double.MinValue;
-
+         
+        double max = double.MaxValue, min = double.MinValue;
+        
         bool white = board.IsWhiteToMove;
 
-        int positionsViewed = 0;
+        //Console.WriteLine($">>>> Current eval: {Eval(board, white)} Move: {board.PlyCount / 2}");
+
 
         int depth = 4;
 
-        (Move move, eval, positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
+        (Move move, double eval, int positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
 
-        Console.WriteLine($">>>> Searched: {positionsViewed}");
+        //Console.WriteLine($">>>> Searched: {positionsViewed}");
+
+        if (move.IsNull)
+        {
+            ConsoleHelper.Log("RETURNED NULL MOVE", false, ConsoleColor.Red);
+        }
+        
         return move;
     }
 
@@ -55,42 +52,23 @@ public class MyBot : IChessBot
 
         List<Move> moves = OrderMoves(board);
 
-        if (moves.Count == 0)
+            
+        if (depth == 0 || moves.Count == 0 || board.IsDraw())
         {
-
-            if (board.IsDraw())
-            {
-                return (Move.NullMove, 0, 1);
-            }
-
-            if (board.IsInCheckmate())
-            {
-                if (maximizing)
-                {
-                    return (Move.NullMove, double.MinValue, 1);
-                }
-                else
-                {
-                    return (Move.NullMove, double.MaxValue, 1);
-                }
-            }
-
+            return (Move.NullMove, Eval(board, maximizing), 1);
         }
-
-        if (depth == 0)
-        {
-            return (Move.NullMove, Eval(board, white), 1);
-        }
+        
         Move bestMove = Move.NullMove, tempMove;
         double bestEval, eval;
         int positionsViewed = 0, temp = 0;
         if (maximizing)
         {
-            bestEval = double.MinValue;
+            bestEval = double.NegativeInfinity;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
                 (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
+            
                 board.UndoMove(move);
 
                 positionsViewed += temp;
@@ -101,12 +79,12 @@ public class MyBot : IChessBot
                     bestMove = move;
                 }
 
-                if (min > bestEval)
+                if (max < bestEval)
                 {
                     break;
                 }
 
-                min = Math.Max(min, eval);
+                min = Math.Max(min, bestEval);
 
             }
 
@@ -114,7 +92,7 @@ public class MyBot : IChessBot
         }
         else
         {
-            bestEval = double.MaxValue;
+            bestEval = double.PositiveInfinity;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
@@ -128,7 +106,7 @@ public class MyBot : IChessBot
                     bestMove = move;
                 }
 
-                if (max < bestEval)
+                if (min > bestEval)
                 {
                     break;
                 }
@@ -140,7 +118,7 @@ public class MyBot : IChessBot
 
 
 
-    double EvalMaterial(Board board, bool white)
+    double EvalMaterial(Board board)
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
         int N = board.GetPieceList(PieceType.Knight, true).Count - board.GetPieceList(PieceType.Knight, false).Count;
@@ -201,16 +179,39 @@ public class MyBot : IChessBot
         }
         return result;
     }
+
     public double Eval(Board board, bool white)
     {
+        
+        double result = EvalMaterial(board) + AttackedSqares(board) * 2 + PiecesPositionEval(board) * 2;
+        
         if (board.IsDraw())
         {
-            return board.PlyCount > 30 ? 0 : (white ? 10000 : -10000 );
+            if (board.PlyCount > 40)
+            {
+                return 0;
+            }
+            else
+            {
+                //Pokud evaluujeme z pohledu bileho,
+                //tak predpokladame, ze cerny nas chce navest do remizy, tedy
+                //ze je to pro nej vyhra
+                if (white)
+                {
+                    return 100000;
+                }
+                else
+                {
+                    return -100000;
+                }
+            }
         }
-        double result = EvalMaterial(board, white) + AttackedSqares(board) * 2 + PiecesPositionEval(board) * 2;
         if (board.IsInCheckmate())
         {
-            result += white ? 100000 : -100000;
+            //Pokud evaluujeme z pohledu bileho,
+            //tak udelal finishing move cerny, a tedy vyhral
+
+            return white ? double.MinValue : double.MaxValue;
         }
 
         return result;

@@ -87,12 +87,11 @@ public class HonzaBot_v2_0 : IChessBot
     {
         if (depth == 0)
         {
-
             return (Eval(board, white), 1);
         }
         List<Move> moves = OrderMoves(board);
         float best, eval;
-        int positionsViewed = 0, temp;
+        int positionsViewed = 0, temp = 0;
         if (white)
         {
             best = float.NegativeInfinity;
