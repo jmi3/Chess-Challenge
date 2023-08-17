@@ -19,8 +19,8 @@ public class StockfishBot : IChessBot
 
     public StockfishBot()
     {
-        var stockfishExe = @"C:\Users\vampr\GitHub\projects\Chess-Challenge\stockfish\stockfish-windows-x86-64-avx2.exe";
-
+        string stockfishExe = Environment.CurrentDirectory + @"\resources\stockfish\stockfish-windows-x86-64-avx2.exe";
+        
         stockfishProcess = new();
         stockfishProcess.StartInfo.RedirectStandardOutput = true;
         stockfishProcess.StartInfo.RedirectStandardInput = true;
