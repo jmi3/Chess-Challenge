@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class HonzaBot_v3: IChessBot
+public class HonzaBot_v3 : IChessBot
 {
 
     public Move Think(Board board, Timer timer)
