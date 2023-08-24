@@ -4,19 +4,13 @@ using System;
 using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class NIWTFWD_v2_5 : IChessBot
 {
     private int _searched = 0;
-    private int _depth = 5; // Set the depth you want the bot to evaluate
-    private Board board;
-    private bool _white;
-
+    
     public Move Think(Board board, Timer timer)
     {
-        
-        this.board = board;
-        _white = board.IsWhiteToMove;
-        Move[] moves = OrderMoves();
+        Move[] moves = OrderMoves(board);
         Move bestMove = new Move();
         
         double temp = 0;
@@ -28,8 +22,8 @@ public class MyBot : IChessBot
         {
             board.MakeMove(move);
             _searched++;
-            temp = -OrderABNegaMax(_depth-1, board.IsWhiteToMove,
-                                    -beta, -alpha);
+            temp =  -OrderABNegaMax(board, 4, board.IsWhiteToMove,
+                                    -beta, -alpha, !board.IsWhiteToMove);
             board.UndoMove(move);
             
             if(temp > result)
@@ -50,65 +44,7 @@ public class MyBot : IChessBot
         return bestMove;
     }
 
-    double OrderABNegaMax(int depth, bool maximizing, double alpha, double beta)
-    {
-        Move[] moves = OrderMoves();
-        if (depth <= 0 || board.IsDraw() || board.IsInCheckmate())
-        {
-            if (board.IsDraw())
-            {
-                if (board.PlyCount > 34)
-                {
-                    return 0;
-                }
-                else
-                {
-                    //Pokud evaluujeme z pohledu bileho,
-                    //tak predpokladame, ze cerny nas chce navest do remizy, tedy
-                    //ze je to pro nej vyhra
-                    if (maximizing)
-                    {
-                        return 2000;
-                    }
-                    else
-                    {
-                        return -2000;
-                    }
-                }
-            }
-            else if (board.IsInCheckmate())
-            {
-                //Pokud evaluujeme z pohledu bileho,
-                //tak udelal finishing move cerny, a tedy vyhral
-
-                return maximizing ? - 10000000 + 100 * (_depth - depth) : 10000000 - 100 * (_depth - depth);
-            }
-            return maximizing ? Eval() : -Eval();
-        }
-
-        double result = double.NegativeInfinity;
-
-        foreach (Move move in moves)
-        {
-            board.MakeMove(move);
-            _searched++;
-            result = Math.Max(
-                result,
-                -OrderABNegaMax(depth - 1, !maximizing,
-                                -beta, -alpha)
-                );
-            board.UndoMove(move);
-            alpha = Math.Max(result, alpha);
-            if (alpha >= beta)
-            {
-                break;
-            }
-        }
-        return result;
-
-
-    }
-    Move[] OrderMoves()
+    Move[] OrderMoves(Board board)
     {
         Move[] otherMoves = board.GetLegalMoves();
         Move[] moves = new Move[otherMoves.Length];
@@ -130,7 +66,40 @@ public class MyBot : IChessBot
 
         return moves;
     }
-    int EvalMaterial()
+
+    double OrderABNegaMax(Board board, int depth, bool maximizing, double alpha, double beta, bool white)
+    {
+        Move[] moves = OrderMoves(board);
+        if (depth <= 0 || board.IsDraw() || board.IsInCheckmate())
+        {
+            return maximizing ? Eval(board, maximizing) : - Eval(board, maximizing);
+        }
+
+        double result = double.NegativeInfinity;
+
+        foreach (Move move in moves)
+        {
+            board.MakeMove(move);
+            _searched++;
+            result = Math.Max(
+                result,
+                -OrderABNegaMax(board,
+                                depth - 1, !maximizing,
+                                -beta, -alpha, white)
+                );
+            board.UndoMove(move);
+            alpha = Math.Max(result, alpha);
+            if (alpha >= beta)
+            {
+                break;
+            }
+        }
+        return result;
+
+
+    }
+
+    double EvalMaterial(Board board, bool white)
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
         int N = board.GetPieceList(PieceType.Knight, true).Count - board.GetPieceList(PieceType.Knight, false).Count;
@@ -140,14 +109,14 @@ public class MyBot : IChessBot
         int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
-        int result = (900 * Q) +
+        double result = (900 * Q) +
             (500 * R) +
             (300 * N) + (300 * B) +
             (100 * P) + (3100 * K);
 
         return result;
     }
-    double AttackedSqares()
+    double AttackedSqares(Board board)
     {
         int result = 0;
         ulong piecesBitboard = board.AllPiecesBitboard;
@@ -164,7 +133,7 @@ public class MyBot : IChessBot
         }
         return result;
     }
-    double PiecesPositionEval()
+    double PiecesPositionEval(Board board)
     {
         double result = 0;
         ulong piecesBitboard = board.AllPiecesBitboard;
@@ -184,9 +153,41 @@ public class MyBot : IChessBot
         }
         return result;
     }
-    public double Eval()
+    public double Eval(Board board, bool white)
     {
-        return EvalMaterial() + AttackedSqares() * 5 + PiecesPositionEval();
+
+        double result = EvalMaterial(board, white) + AttackedSqares(board) * 5 + PiecesPositionEval(board);
+
+        if (board.IsDraw())
+        {
+            if (board.PlyCount > 34)
+            {
+                return 0;
+            }
+            else
+            {
+                //Pokud evaluujeme z pohledu bileho,
+                //tak predpokladame, ze cerny nas chce navest do remizy, tedy
+                //ze je to pro nej vyhra
+                if (white)
+                {
+                    return 100000;
+                }
+                else
+                {
+                    return -100000;
+                }
+            }
+        }
+        else if (board.IsInCheckmate())
+        {
+            //Pokud evaluujeme z pohledu bileho,
+            //tak udelal finishing move cerny, a tedy vyhral
+
+            return white ? double.MinValue/2 : double.MaxValue/2;
+        }
+
+        return result;
     }
 
 }
