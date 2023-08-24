@@ -6,119 +6,100 @@ using System.Collections.Generic;
 namespace ChessChallenge.Example;
 public class MyBot : IChessBot
 {
-
+    private int _searched = 0;
+    
     public Move Think(Board board, Timer timer)
     {
-         
-        double max = double.MaxValue, min = double.MinValue;
+        Move[] moves = OrderMoves(board);
+        Move bestMove = new Move();
         
-        bool white = board.IsWhiteToMove;
+        double temp = 0;
+        _searched = 0;
+        double alpha = double.NegativeInfinity, beta = double.PositiveInfinity;
+        double result = double.NegativeInfinity;
 
-        //Console.WriteLine($">>>> Current eval: {Eval(board, white)} Move: {board.PlyCount / 2}");
-
-
-        int depth = 4;
-
-        (Move move, double eval, int positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
-
-        //Console.WriteLine($">>>> Searched: {positionsViewed}");
-
-        if (move.IsNull)
+        foreach (Move move in moves)
         {
-            ConsoleHelper.Log("RETURNED NULL MOVE", false, ConsoleColor.Red);
+            board.MakeMove(move);
+            _searched++;
+            temp =  -OrderABNegaMax(board, 4, board.IsWhiteToMove,
+                                    -beta, -alpha, !board.IsWhiteToMove);
+            board.UndoMove(move);
+            
+            if(temp > result)
+            {
+                result = temp;
+                bestMove = move;
+            }
+            alpha = Math.Max(result, alpha);
+            if (alpha >= beta)
+            {
+                break;
+            }
         }
-        
-        return move;
+
+        ConsoleHelper.Log($"Playing {board.IsWhiteToMove}, making move {bestMove} with eval found {result}, last temp {temp}", false, ConsoleColor.White);
+        ConsoleHelper.Log($"Searched {_searched}", false, ConsoleColor.Red);
+
+        return bestMove;
     }
 
-    List<Move> OrderMoves(Board board)
+    Move[] OrderMoves(Board board)
     {
         Move[] otherMoves = board.GetLegalMoves();
-        List<Move> moves = new List<Move>(board.GetLegalMoves(true));
+        Move[] moves = new Move[otherMoves.Length];
+        int captures = board.GetLegalMoves(true).Length;
+        int seen_captures = 0;
 
         for (int i = 0; i < otherMoves.Length; i++)
         {
-            if (!moves.Contains(otherMoves[i]))
+            if (otherMoves[i].IsCapture)
             {
-                moves.Add(otherMoves[i]);
+                moves[seen_captures] = otherMoves[i];
+                seen_captures++;
+            }
+            else
+            {
+                moves[captures + i - seen_captures] = otherMoves[i];
             }
         }
 
         return moves;
     }
 
-    (Move bestMove, double eval, int count) OrderABSearch(Board board, int depth, bool white, bool maximizing, double min = double.MinValue, double max = double.MaxValue)
+    double OrderABNegaMax(Board board, int depth, bool maximizing, double alpha, double beta, bool white)
     {
-
-        List<Move> moves = OrderMoves(board);
-
-            
-        if (depth == 0 || moves.Count == 0 || board.IsDraw())
+        Move[] moves = OrderMoves(board);
+        if (depth <= 0 || board.IsDraw() || board.IsInCheckmate())
         {
-            return (Move.NullMove, Eval(board, maximizing), 1);
+            return maximizing ? Eval(board, maximizing) : - Eval(board, maximizing);
         }
-        
-        Move bestMove = Move.NullMove, tempMove;
-        double bestEval, eval;
-        int positionsViewed = 0, temp = 0;
-        if (maximizing)
+
+        double result = double.NegativeInfinity;
+
+        foreach (Move move in moves)
         {
-            bestEval = double.NegativeInfinity;
-            foreach (Move move in moves)
+            board.MakeMove(move);
+            _searched++;
+            result = Math.Max(
+                result,
+                -OrderABNegaMax(board,
+                                depth - 1, !maximizing,
+                                -beta, -alpha, white)
+                );
+            board.UndoMove(move);
+            alpha = Math.Max(result, alpha);
+            if (alpha >= beta)
             {
-                board.MakeMove(move);
-                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
-            
-                board.UndoMove(move);
-
-                positionsViewed += temp;
-
-                if (eval > bestEval)
-                {
-                    bestEval = eval;
-                    bestMove = move;
-                }
-
-                if (max < bestEval)
-                {
-                    break;
-                }
-
-                min = Math.Max(min, bestEval);
-
+                break;
             }
-
-            return (bestMove, bestEval, positionsViewed);
         }
-        else
-        {
-            bestEval = double.PositiveInfinity;
-            foreach (Move move in moves)
-            {
-                board.MakeMove(move);
-                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, true, min, max);
-                board.UndoMove(move);
+        return result;
 
-                positionsViewed += temp;
-                if (eval < bestEval)
-                {
-                    bestEval = eval;
-                    bestMove = move;
-                }
 
-                if (min > bestEval)
-                {
-                    break;
-                }
-                max = Math.Min(max, bestEval);
-            }
-            return (bestMove, bestEval, positionsViewed);
-        }
     }
 
-
-
-    double EvalMaterial(Board board)
+    double EvalMaterial(Board board, bool white)
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
         int N = board.GetPieceList(PieceType.Knight, true).Count - board.GetPieceList(PieceType.Knight, false).Count;
@@ -135,8 +116,6 @@ public class MyBot : IChessBot
 
         return result;
     }
-
-
     double AttackedSqares(Board board)
     {
         int result = 0;
@@ -150,7 +129,7 @@ public class MyBot : IChessBot
             {
                 white = -1;
             }
-            result += BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))*white;
+            result += BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite)) * white;
         }
         return result;
     }
@@ -169,25 +148,19 @@ public class MyBot : IChessBot
             }
             if (currentPiece.IsKing)
             {
-                result += (((currentSquare.File - 3.5) * (currentSquare.File - 3.5)) + ((currentSquare.Rank - 3.5) * (currentSquare.Rank - 3.5))) * white;
+                result += Math.Sqrt((currentSquare.File - 3.5) * (currentSquare.File - 3.5) + (currentSquare.Rank - 3.5) * (currentSquare.Rank - 3.5)) * white;
             }
-            if (board.PlyCount > 50 && currentPiece.IsPawn)
-            {
-                result += (board.PlyCount-50) * (currentSquare.Rank-3.5) * white;
-            }
-
         }
         return result;
     }
-
     public double Eval(Board board, bool white)
     {
-        
-        double result = EvalMaterial(board) + AttackedSqares(board) * 2 + PiecesPositionEval(board) * 2;
-        
+
+        double result = EvalMaterial(board, white) + AttackedSqares(board) * 5 + PiecesPositionEval(board);
+
         if (board.IsDraw())
         {
-            if (board.PlyCount > 40)
+            if (board.PlyCount > 34)
             {
                 return 0;
             }
@@ -206,14 +179,16 @@ public class MyBot : IChessBot
                 }
             }
         }
-        if (board.IsInCheckmate())
+        else if (board.IsInCheckmate())
         {
             //Pokud evaluujeme z pohledu bileho,
             //tak udelal finishing move cerny, a tedy vyhral
 
-            return white ? double.MinValue : double.MaxValue;
+            return white ? double.MinValue/2 : double.MaxValue/2;
         }
 
         return result;
     }
+
 }
+

@@ -36,7 +36,6 @@ namespace ChessChallenge.Application
                 controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.Stockfish); 
             }
 
-
             // Page buttons
             buttonPos.Y += breakSpacing;
 

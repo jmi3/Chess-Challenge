@@ -6,71 +6,35 @@ using System.Collections.Generic;
 namespace ChessChallenge.Example;
 public class EvilBot : IChessBot
 {
-    // HonzaBot v2.0
-    // Uses fail-hard Alpha-Beta pruning
-    // Has very naive ordering (captures first)
 
     public Move Think(Board board, Timer timer)
     {
-        Move move = GetTheMove(board, timer);
 
-        return move;
-    }
+        double max = double.MaxValue, min = double.MinValue;
 
-
-    public Move GetTheMove(Board board, Timer timer)
-    {
-        List<Move> legalMoves = OrderMoves(board);
-        Move move = Move.NullMove;
-        float bestEval;
-
-        float eval;
         bool white = board.IsWhiteToMove;
-        int positionsViewed = 0;
-        int depth = 3;
-        if (white)
+
+        //Console.WriteLine($">>>> Current eval: {Eval(board, white)} Move: {board.PlyCount / 2}");
+
+
+        int depth = 4;
+
+        (Move move, double eval, int positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
+
+        //Console.WriteLine($">>>> Searched: {positionsViewed}");
+
+        if (move.IsNull)
         {
-            bestEval = float.NegativeInfinity;
-            for (int i = 0; i < legalMoves.Count; i++)
-            {
-                board.MakeMove(legalMoves[i]);
-                (eval, positionsViewed) = OrderABSearch(board, depth, !white);
-                board.UndoMove(legalMoves[i]);
-                if (eval > bestEval)
-                {
-                    move = legalMoves[i];
-                    bestEval = eval;
-                }
-            }
+            ConsoleHelper.Log("RETURNED NULL MOVE", false, ConsoleColor.Red);
         }
-        else
-        {
-            bestEval = float.PositiveInfinity;
-            for (int i = 0; i < legalMoves.Count; i++)
-            {
-                board.MakeMove(legalMoves[i]);
-                (eval, positionsViewed) = OrderABSearch(board, depth, !white);
-                board.UndoMove(legalMoves[i]);
-                if (eval < bestEval)
-                {
-                    move = legalMoves[i];
-                    bestEval = eval;
-                }
-            }
-        }
-        Console.WriteLine($">>>> HBv2.0 Searched: {positionsViewed}");
+
         return move;
     }
 
     List<Move> OrderMoves(Board board)
     {
-        Move[] captureMoves = board.GetLegalMoves(true);
         Move[] otherMoves = board.GetLegalMoves();
-        List<Move> moves = new List<Move>();
-        for (int i = 0; i < captureMoves.Length; i++)
-        {
-            moves.Add(captureMoves[i]);
-        }
+        List<Move> moves = new List<Move>(board.GetLegalMoves(true));
 
         for (int i = 0; i < otherMoves.Length; i++)
         {
@@ -83,68 +47,78 @@ public class EvilBot : IChessBot
         return moves;
     }
 
-    (float eval, int count) OrderABSearch(Board board, int depth, bool white, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
+    (Move bestMove, double eval, int count) OrderABSearch(Board board, int depth, bool white, bool maximizing, double min = double.MinValue, double max = double.MaxValue)
     {
-        if (depth == 0)
-        {
 
-            return (Eval(board, white), 1);
-        }
         List<Move> moves = OrderMoves(board);
-        float best, eval;
-        int positionsViewed = 0, temp;
-        if (white)
+
+
+        if (depth == 0 || moves.Count == 0 || board.IsDraw())
         {
-            best = float.NegativeInfinity;
+            return (Move.NullMove, Eval(board, maximizing), 1);
+        }
+
+        Move bestMove = Move.NullMove, tempMove;
+        double bestEval, eval;
+        int positionsViewed = 0, temp = 0;
+        if (maximizing)
+        {
+            bestEval = double.NegativeInfinity;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                (eval, temp) = OrderABSearch(board, depth - 1, false, min, max);
-                best = Math.Max(eval, best);
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
+
                 board.UndoMove(move);
+
                 positionsViewed += temp;
-                if (move.IsPromotion && move.PromotionPieceType != PieceType.Queen)
+
+                if (eval > bestEval)
                 {
-                    eval -= 2;
+                    bestEval = eval;
+                    bestMove = move;
                 }
-                if (best > max)
+
+                if (max < bestEval)
                 {
                     break;
                 }
-                min = Math.Max(min, best);
+
+                min = Math.Max(min, bestEval);
 
             }
 
-            return (best, positionsViewed);
+            return (bestMove, bestEval, positionsViewed);
         }
         else
         {
-            best = float.PositiveInfinity;
+            bestEval = double.PositiveInfinity;
             foreach (Move move in moves)
             {
                 board.MakeMove(move);
-                (eval, temp) = OrderABSearch(board, depth - 1, false, min, max);
-                best = Math.Min(eval, best);
+                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, true, min, max);
                 board.UndoMove(move);
-                if (move.IsPromotion && move.PromotionPieceType != PieceType.Queen)
-                {
-                    eval += 2;
-                }
+
                 positionsViewed += temp;
-                if (best < min)
+                if (eval < bestEval)
+                {
+                    bestEval = eval;
+                    bestMove = move;
+                }
+
+                if (min > bestEval)
                 {
                     break;
                 }
-                max = Math.Min(max, best);
+                max = Math.Min(max, bestEval);
             }
-            return (best, positionsViewed);
+            return (bestMove, bestEval, positionsViewed);
         }
     }
 
 
 
-
-    float EvalMaterial(Board board, bool white)
+    double EvalMaterial(Board board, bool white)
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
         int N = board.GetPieceList(PieceType.Knight, true).Count - board.GetPieceList(PieceType.Knight, false).Count;
@@ -154,32 +128,84 @@ public class EvilBot : IChessBot
         int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
-        float result =
-            (9 * Q) + (5 * R) +
-            (3 * N) + (3 * B) +
-            (1 * P) + (12 * K);
+        double result = (900 * Q) +
+            (500 * R) +
+            (300 * N) + (300 * B) +
+            (100 * P) + (3100 * K);
 
         return result;
     }
-    public float Eval(Board board, bool white)
+    double AttackedSqares(Board board)
     {
+        int result = 0;
+        ulong piecesBitboard = board.AllPiecesBitboard;
+        while (piecesBitboard > 0)
+        {
+            int white = 1;
+            Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
+            Piece currentPiece = board.GetPiece(currentSquare);
+            if (!currentPiece.IsWhite)
+            {
+                white = -1;
+            }
+            result += BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite)) * white;
+        }
+        return result;
+    }
+    double PiecesPositionEval(Board board)
+    {
+        double result = 0;
+        ulong piecesBitboard = board.AllPiecesBitboard;
+        while (piecesBitboard > 0)
+        {
+            int white = 1;
+            Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
+            Piece currentPiece = board.GetPiece(currentSquare);
+            if (!currentPiece.IsWhite)
+            {
+                white = -1;
+            }
+            if (currentPiece.IsKing)
+            {
+                result += Math.Sqrt((currentSquare.File - 3.5) * (currentSquare.File - 3.5) + (currentSquare.Rank - 3.5) * (currentSquare.Rank - 3.5)) * white;
+            }
+        }
+        return result;
+    }
+    public double Eval(Board board, bool white)
+    {
+
+        double result = EvalMaterial(board, white) + AttackedSqares(board) * 5 + PiecesPositionEval(board);
+
         if (board.IsDraw())
         {
-            return 0;
+            if (board.PlyCount > 34)
+            {
+                return 0;
+            }
+            else
+            {
+                //Pokud evaluujeme z pohledu bileho,
+                //tak predpokladame, ze cerny nas chce navest do remizy, tedy
+                //ze je to pro nej vyhra
+                if (white)
+                {
+                    return 100000;
+                }
+                else
+                {
+                    return -100000;
+                }
+            }
         }
-        float result = EvalMaterial(board, white);
-        if (board.IsInCheckmate())
+        else if (board.IsInCheckmate())
         {
-            result += white ? 100 : -100;
+            //Pokud evaluujeme z pohledu bileho,
+            //tak udelal finishing move cerny, a tedy vyhral
+
+            return white ? double.MinValue : double.MaxValue;
         }
 
         return result;
-
     }
-
-
-
-
 }
-
-
