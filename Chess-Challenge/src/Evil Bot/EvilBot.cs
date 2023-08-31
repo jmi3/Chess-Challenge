@@ -27,7 +27,7 @@ public class EvilBot : IChessBot
         {
             ConsoleHelper.Log("RETURNED NULL MOVE", false, ConsoleColor.Red);
         }
-
+        ConsoleHelper.Log("Making move", false, ConsoleColor.Green);
         return move;
     }
 

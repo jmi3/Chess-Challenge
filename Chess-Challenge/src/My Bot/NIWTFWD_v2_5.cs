@@ -1,7 +1,6 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
-using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
 public class NIWTFWD_v2_5 : IChessBot
