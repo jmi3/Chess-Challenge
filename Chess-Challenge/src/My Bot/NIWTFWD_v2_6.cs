@@ -1,10 +1,9 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
-using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class NIWTFWD_v2_6 : IChessBot
 {
     private int _searched = 0;
     // Set the depth you want the bot to evaluate
@@ -25,11 +24,11 @@ public class MyBot : IChessBot
         public byte flag;
     };
 
-    Transposition[] m_TPTable;
+    Transposition[] TPTable;
 
-    public MyBot()
+    public NIWTFWD_v2_6()
     {
-        m_TPTable = new Transposition[0x800000];
+        TPTable = new Transposition[0x800000];
     }
 
     public Move Think(Board board, Timer timer)
@@ -45,13 +44,13 @@ public class MyBot : IChessBot
         DateTime t = DateTime.Now;
         _transposition_depth = 0;
         int result = TPTOrderABNegaMax(_depth, _maximizing, alpha, beta);
-        ref Transposition tran = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
+        ref Transposition tran = ref TPTable[board.ZobristKey & 0x7FFFFF];
         
         ConsoleHelper.Log($"Playing {board.IsWhiteToMove}, making move {_bestMove} with eval {tran.evaluation} material {EvalMaterial()}", false, ConsoleColor.White);
         ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
         if (reduceDepth)
         {
-            _max_depth = 512;
+            _max_depth = 256;
             reduceDepth = false;
             _depth = _depth - 2;
         }
@@ -63,7 +62,7 @@ public class MyBot : IChessBot
     {
         int startAlpha = alpha;
         Move bestMove = Move.NullMove;
-        ref Transposition transposition = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
+        ref Transposition transposition = ref TPTable[board.ZobristKey & 0x7FFFFF];
         if (transposition.zobristHash == board.ZobristKey && transposition.depth >= depth)
         {
             ref int TPTeval = ref transposition.evaluation;
