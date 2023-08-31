@@ -1,21 +1,21 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
-using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
 public class MyBot : IChessBot
 {
     private int _searched = 0;
     // Set the depth you want the bot to evaluate
-    private int _depth = 7;     
-    private int _max_depth = int.MaxValue;     
-    private int _transposition_depth = 0;     
-    
+    private int _depth = 6;
+    private int _max_depth = 2048;
+    private int _transposition_depth = 0;
+
     private Board board;
     private int _maximizing;
     private Move _bestMove;
-    private bool reduceDepth = true;
+    private byte completed_first_run = 0;
+
     public struct Transposition
     {
         public ulong zobristHash;
@@ -25,45 +25,55 @@ public class MyBot : IChessBot
         public byte flag;
     };
 
-    Transposition[] m_TPTable;
+    Transposition[] TPTable;
 
     public MyBot()
     {
-        m_TPTable = new Transposition[0x800000];
+        TPTable = new Transposition[0x800000];
+        board = Board.CreateBoardFromFEN("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+        TPTOrderABNegaMax(5, 1, -800000000, 800000000);
     }
 
     public Move Think(Board board, Timer timer)
     {
-        //if (!reduceDepth && timer.MillisecondsRemaining < timer.GameStartTimeMilliseconds / 4 && timer.OpponentMillisecondsRemaining > timer.MillisecondsRemaining)
-        
+
+        if (completed_first_run <= 1 && timer.MillisecondsRemaining < 7500)
+        {
+            completed_first_run++;
+            _depth = _depth - 1;
+        } else if (completed_first_run > 1 && timer.MillisecondsRemaining > 10000)
+        {
+            completed_first_run = 1;
+            _depth = _depth + 1;
+        }
+
         this.board = board;
         _maximizing = board.IsWhiteToMove ? 1 : -1;
         _searched = 0;
-        
-        int alpha = int.MinValue / 3, beta = int.MaxValue / 3;
-        
-        DateTime t = DateTime.Now;
         _transposition_depth = 0;
-        int result = TPTOrderABNegaMax(_depth, _maximizing, alpha, beta);
-        ref Transposition tran = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
-        
+
+        DateTime t = DateTime.Now;
+        int result = TPTOrderABNegaMax(_depth, _maximizing, -800000000, 800000000);
+        ref Transposition tran = ref TPTable[board.ZobristKey & 0x7FFFFF];
+
         ConsoleHelper.Log($"Playing {board.IsWhiteToMove}, making move {_bestMove} with eval {tran.evaluation} material {EvalMaterial()}", false, ConsoleColor.White);
         ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
-        if (reduceDepth)
+       
+        if (completed_first_run==0)
         {
-            _max_depth = 512;
-            reduceDepth = false;
-            _depth = _depth - 2;
+            _max_depth = 256;
+            completed_first_run++;
+            _depth = _depth - 1;
         }
         return _bestMove;
     }
-    
+
     // Negamax algorithm with alpha-beta pruning
     int TPTOrderABNegaMax(int depth, int maximizing, int alpha, int beta)
     {
         int startAlpha = alpha;
         Move bestMove = Move.NullMove;
-        ref Transposition transposition = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
+        ref Transposition transposition = ref TPTable[board.ZobristKey & 0x7FFFFF];
         if (transposition.zobristHash == board.ZobristKey && transposition.depth >= depth)
         {
             ref int TPTeval = ref transposition.evaluation;
@@ -77,7 +87,7 @@ public class MyBot : IChessBot
                     Move move = transposition.move;
                     board.MakeMove(move);
                     TPTeval = Math.Max(TPTeval, -TPTOrderABNegaMax(depth, -maximizing, -beta, -alpha));
-                    board.UndoMove(move);   
+                    board.UndoMove(move);
                 }
 
                 if (_depth == depth)
@@ -89,7 +99,7 @@ public class MyBot : IChessBot
             }
             else if (transposition.flag == 2)
             {
-                
+
                 alpha = Math.Max(alpha, TPTeval);
             }
             else if (transposition.flag == 3)
@@ -130,7 +140,7 @@ public class MyBot : IChessBot
             }
             return maximizing * Eval();
         }
-        
+
         Move[] moves = OrderMoves();
         int result = int.MinValue / 2;
         int temp;
@@ -170,7 +180,7 @@ public class MyBot : IChessBot
         {
             transposition.flag = 1;
         }
-        transposition.depth = (sbyte) depth;
+        transposition.depth = (sbyte)depth;
         if (_depth == depth)
         {
             _bestMove = bestMove;
