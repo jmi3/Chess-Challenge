@@ -18,7 +18,7 @@ public class NoIdeaWTFWeDoing_TM_v2_3 : IChessBot
     public Move GetTheMove(Board board, Timer timer)
     {
 
-        double bestEval;
+        //double bestEval;
 
         double eval, max = double.MaxValue, min = double.MinValue;
 

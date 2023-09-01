@@ -1,124 +1,204 @@
 ﻿using ChessChallenge.API;
 using ChessChallenge.Application;
 using System;
-using System.Collections.Generic;
 
 namespace ChessChallenge.Example;
 public class EvilBot : IChessBot
 {
+    private int _searched = 0;
+    // Set the depth you want the bot to evaluate
+    private int _depth = 6;
+    private int _max_depth = 2048;
+    private int _transposition_depth = 0;
+
+    private Board board;
+    private int _maximizing;
+    private Move _bestMove;
+    private bool reduceDepth = true;
+    public struct Transposition
+    {
+        public ulong zobristHash;
+        public Move move;
+        public int evaluation;
+        public sbyte depth;
+        public byte flag;
+    };
+
+    Transposition[] TPTable;
+
+    public EvilBot()
+    {
+        TPTable = new Transposition[0x800000];
+    }
 
     public Move Think(Board board, Timer timer)
     {
+        //if (!reduceDepth && timer.MillisecondsRemaining < timer.GameStartTimeMilliseconds / 4 && timer.OpponentMillisecondsRemaining > timer.MillisecondsRemaining)
 
-        double max = double.MaxValue, min = double.MinValue;
+        this.board = board;
+        _maximizing = board.IsWhiteToMove ? 1 : -1;
+        _searched = 0;
 
-        bool white = board.IsWhiteToMove;
+        int alpha = int.MinValue / 3, beta = int.MaxValue / 3;
 
-        //Console.WriteLine($">>>> Current eval: {Eval(board, white)} Move: {board.PlyCount / 2}");
+        DateTime t = DateTime.Now;
+        _transposition_depth = 0;
+        int result = TPTOrderABNegaMax(_depth, _maximizing, alpha, beta);
+        ref Transposition tran = ref TPTable[board.ZobristKey & 0x7FFFFF];
 
-
-        int depth = 4;
-
-        (Move move, double eval, int positionsViewed) = OrderABSearch(board, depth, white, white, min, max);
-
-        //Console.WriteLine($">>>> Searched: {positionsViewed}");
-
-        if (move.IsNull)
+        //ConsoleHelper.Log($"Playing {board.IsWhiteToMove}, making move {_bestMove} with eval {tran.evaluation} material {EvalMaterial()}", false, ConsoleColor.White);
+        //ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
+        if (reduceDepth)
         {
-            ConsoleHelper.Log("RETURNED NULL MOVE", false, ConsoleColor.Red);
+            _max_depth = 512;
+            reduceDepth = false;
+            _depth = _depth - 1;
         }
-        ConsoleHelper.Log("Making move", false, ConsoleColor.Green);
-        return move;
+        return _bestMove;
     }
 
-    List<Move> OrderMoves(Board board)
+    // Negamax algorithm with alpha-beta pruning
+    int TPTOrderABNegaMax(int depth, int maximizing, int alpha, int beta)
+    {
+        int startAlpha = alpha;
+        Move bestMove = Move.NullMove;
+        ref Transposition transposition = ref TPTable[board.ZobristKey & 0x7FFFFF];
+        if (transposition.zobristHash == board.ZobristKey && transposition.depth >= depth)
+        {
+            ref int TPTeval = ref transposition.evaluation;
+            //If we have an "exact" score (a < score < beta) just use that
+            if (transposition.flag == 1)
+            {
+                if (_max_depth >= _transposition_depth)
+                {
+                  //  ConsoleHelper.Log($"Jsem v chainu: {_transposition_depth}", false, ConsoleColor.Yellow);
+                    _transposition_depth++;
+                    Move move = transposition.move;
+                    board.MakeMove(move);
+                    TPTeval = Math.Max(TPTeval, -TPTOrderABNegaMax(depth, -maximizing, -beta, -alpha));
+                    board.UndoMove(move);
+                }
+
+                if (_depth == depth)
+                {
+                    _bestMove = transposition.move;
+                }
+                return TPTeval;
+
+            }
+            else if (transposition.flag == 2)
+            {
+
+                alpha = Math.Max(alpha, TPTeval);
+            }
+            else if (transposition.flag == 3)
+            {
+                beta = Math.Min(beta, TPTeval);
+            }
+            if (alpha >= beta)
+            {
+                if (_depth == depth)
+                {
+                    _bestMove = transposition.move;
+                }
+                return TPTeval;
+            }
+        }
+        if (depth <= 0 || board.IsDraw() || board.IsInCheckmate())
+        {
+            if (board.IsDraw())
+            {
+                if (board.PlyCount > 34)
+                {
+                    return 0;
+                }
+                else
+                {
+                    //Pokud evaluujeme z pohledu bileho,
+                    //tak predpokladame, ze cerny nas chce navest do remizy, tedy
+                    //ze je to pro nej vyhra
+                    return maximizing * (-2000);
+                }
+            }
+            else if (board.IsInCheckmate())
+            {
+                //Pokud evaluujeme z pohledu bileho,
+                //tak udelal finishing move cerny, a tedy vyhral
+
+                return maximizing * (1000000 - 100 * (_depth - depth));
+            }
+            return maximizing * Eval();
+        }
+
+        Move[] moves = OrderMoves();
+        int result = int.MinValue / 2;
+        int temp;
+        foreach (Move move in moves)
+        {
+            board.MakeMove(move);
+            _searched++;
+            temp = -TPTOrderABNegaMax(depth - 1, -maximizing, -beta, -alpha);
+            board.UndoMove(move);
+
+            if (temp > result)
+            {
+                result = temp;
+                bestMove = move;
+            }
+
+            alpha = Math.Max(result, alpha);
+            if (alpha >= beta)
+            {
+                break;
+            }
+        }
+
+        transposition.evaluation = result;
+        transposition.zobristHash = board.ZobristKey;
+        transposition.move = bestMove;
+
+        if (result <= startAlpha)
+        {
+            transposition.flag = 3;
+        }
+        else if (result >= beta)
+        {
+            transposition.flag = 2;
+        }
+        else
+        {
+            transposition.flag = 1;
+        }
+        transposition.depth = (sbyte)depth;
+        if (_depth == depth)
+        {
+            _bestMove = bestMove;
+        }
+        return result;
+    }
+    Move[] OrderMoves()
     {
         Move[] otherMoves = board.GetLegalMoves();
-        List<Move> moves = new List<Move>(board.GetLegalMoves(true));
+        Move[] moves = new Move[otherMoves.Length];
+        int captures = board.GetLegalMoves(true).Length;
+        int seen_captures = 0;
 
         for (int i = 0; i < otherMoves.Length; i++)
         {
-            if (!moves.Contains(otherMoves[i]))
+            if (otherMoves[i].IsCapture)
             {
-                moves.Add(otherMoves[i]);
+                moves[seen_captures] = otherMoves[i];
+                seen_captures++;
+            }
+            else
+            {
+                moves[captures + i - seen_captures] = otherMoves[i];
             }
         }
 
         return moves;
     }
-
-    (Move bestMove, double eval, int count) OrderABSearch(Board board, int depth, bool white, bool maximizing, double min = double.MinValue, double max = double.MaxValue)
-    {
-
-        List<Move> moves = OrderMoves(board);
-
-
-        if (depth == 0 || moves.Count == 0 || board.IsDraw())
-        {
-            return (Move.NullMove, Eval(board, maximizing), 1);
-        }
-
-        Move bestMove = Move.NullMove, tempMove;
-        double bestEval, eval;
-        int positionsViewed = 0, temp = 0;
-        if (maximizing)
-        {
-            bestEval = double.NegativeInfinity;
-            foreach (Move move in moves)
-            {
-                board.MakeMove(move);
-                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, false, min, max);
-
-                board.UndoMove(move);
-
-                positionsViewed += temp;
-
-                if (eval > bestEval)
-                {
-                    bestEval = eval;
-                    bestMove = move;
-                }
-
-                if (max < bestEval)
-                {
-                    break;
-                }
-
-                min = Math.Max(min, bestEval);
-
-            }
-
-            return (bestMove, bestEval, positionsViewed);
-        }
-        else
-        {
-            bestEval = double.PositiveInfinity;
-            foreach (Move move in moves)
-            {
-                board.MakeMove(move);
-                (tempMove, eval, temp) = OrderABSearch(board, depth - 1, white, true, min, max);
-                board.UndoMove(move);
-
-                positionsViewed += temp;
-                if (eval < bestEval)
-                {
-                    bestEval = eval;
-                    bestMove = move;
-                }
-
-                if (min > bestEval)
-                {
-                    break;
-                }
-                max = Math.Min(max, bestEval);
-            }
-            return (bestMove, bestEval, positionsViewed);
-        }
-    }
-
-
-
-    double EvalMaterial(Board board, bool white)
+    int EvalMaterial()
     {
         int P = board.GetPieceList(PieceType.Pawn, true).Count - board.GetPieceList(PieceType.Pawn, false).Count;
         int N = board.GetPieceList(PieceType.Knight, true).Count - board.GetPieceList(PieceType.Knight, false).Count;
@@ -128,14 +208,14 @@ public class EvilBot : IChessBot
         int K = board.GetPieceList(PieceType.King, true).Count - board.GetPieceList(PieceType.King, false).Count;
 
         //Multiply the material differences by their respective weights.
-        double result = (900 * Q) +
+        int result = (900 * Q) +
             (500 * R) +
             (300 * N) + (300 * B) +
             (100 * P) + (3100 * K);
 
         return result;
     }
-    double AttackedSqares(Board board)
+    int AttackedSqares()
     {
         int result = 0;
         ulong piecesBitboard = board.AllPiecesBitboard;
@@ -152,7 +232,7 @@ public class EvilBot : IChessBot
         }
         return result;
     }
-    double PiecesPositionEval(Board board)
+    double PiecesPositionEval()
     {
         double result = 0;
         ulong piecesBitboard = board.AllPiecesBitboard;
@@ -172,40 +252,10 @@ public class EvilBot : IChessBot
         }
         return result;
     }
-    public double Eval(Board board, bool white)
+    public int Eval()
     {
-
-        double result = EvalMaterial(board, white) + AttackedSqares(board) * 5 + PiecesPositionEval(board);
-
-        if (board.IsDraw())
-        {
-            if (board.PlyCount > 34)
-            {
-                return 0;
-            }
-            else
-            {
-                //Pokud evaluujeme z pohledu bileho,
-                //tak predpokladame, ze cerny nas chce navest do remizy, tedy
-                //ze je to pro nej vyhra
-                if (white)
-                {
-                    return 100000;
-                }
-                else
-                {
-                    return -100000;
-                }
-            }
-        }
-        else if (board.IsInCheckmate())
-        {
-            //Pokud evaluujeme z pohledu bileho,
-            //tak udelal finishing move cerny, a tedy vyhral
-
-            return white ? double.MinValue : double.MaxValue;
-        }
-
-        return result;
+        return EvalMaterial() + AttackedSqares() * 5 + (int)PiecesPositionEval();
     }
+
 }
+

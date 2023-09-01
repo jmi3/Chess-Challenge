@@ -7,8 +7,8 @@ public class NIWTFWD_v2_6 : IChessBot
 {
     private int _searched = 0;
     // Set the depth you want the bot to evaluate
-    private int _depth = 7;     
-    private int _max_depth = int.MaxValue;     
+    private int _depth = 6;     
+    private int _max_depth = 2048;     
     private int _transposition_depth = 0;     
     
     private Board board;
@@ -50,9 +50,9 @@ public class NIWTFWD_v2_6 : IChessBot
         ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
         if (reduceDepth)
         {
-            _max_depth = 256;
+            _max_depth = 512;
             reduceDepth = false;
-            _depth = _depth - 2;
+            _depth = _depth - 1;
         }
         return _bestMove;
     }
