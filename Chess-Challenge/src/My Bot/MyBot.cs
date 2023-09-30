@@ -58,8 +58,8 @@ public class MyBot : IChessBot
         _transposition_depth = 0;
         int result = TPTOrderABNegaMax(_depth, _maximizing, alpha, beta);
         ref Transposition tran = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
-        ConsoleHelper.Log($"Playing {board.IsWhiteToMove} making move {_bestMove} with eval {tran.evaluation} material {Eval()}", false, ConsoleColor.White);
-        ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
+        //ConsoleHelper.Log($"Playing {board.IsWhiteToMove} making move {_bestMove} with eval {tran.evaluation} material {Eval()}", false, ConsoleColor.White);
+        //ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
         if (reduceDepth==0)
         {
             _max_depth = 256;
@@ -224,10 +224,10 @@ public class MyBot : IChessBot
     {
         int result = 0;
         ulong piecesBitboard = board.AllPiecesBitboard;
+        sbyte white;
+        sbyte blackShift;
         while (piecesBitboard > 0)
         {
-            int white = 1;
-            int blackShift = 0;
             Square currentSquare = new Square(BitboardHelper.ClearAndGetIndexOfLSB(ref piecesBitboard));
             Piece currentPiece = board.GetPiece(currentSquare);
             if (!currentPiece.IsWhite)
@@ -235,7 +235,12 @@ public class MyBot : IChessBot
                 white = -1;
                 blackShift = 7;
             }
-            
+            else
+            {
+                white = 1;
+                blackShift = 0;
+            }
+
             result += 
                 (((int)(_positionalWeights[(int)(white * (currentSquare.Rank - blackShift) / 2), (int)currentPiece.PieceType - 1] >> (4 * currentSquare.File + (white * (currentSquare.Rank - blackShift)) % 2 * 32)) & 15)
                 + BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))

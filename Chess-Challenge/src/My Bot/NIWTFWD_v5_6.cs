@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class NIWTFWD_v5_6 : IChessBot
 {
     private int _searched = 0;
     // Set the depth you want the bot to evaluate
@@ -35,7 +35,7 @@ public class MyBot : IChessBot
 
     Transposition[] m_TPTable;
 
-    public MyBot()
+    public NIWTFWD_v5_6()
     {
         m_TPTable = new Transposition[0x800000];
     }

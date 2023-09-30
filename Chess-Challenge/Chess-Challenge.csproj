@@ -29,6 +29,9 @@
     <Compile Update="src\My Bot\HonzaBoti\HonzaBot_v2_0.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
+    <Compile Update="src\My Bot\NIWTFWD_v5_6.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
     <Compile Update="src\My Bot\NIWTFWD_v2_6.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
