@@ -35,7 +35,14 @@ namespace ChessChallenge.Application
             { 
                 controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.Stockfish); 
             }
-
+            if (NextButtonInRow("MyBot vs v5_6", ref buttonPos, spacing, buttonSize))
+            {
+                controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.NIWTFWD_v5_6);
+            }
+            if (NextButtonInRow("v2_6 vs v5_7", ref buttonPos, spacing, buttonSize))
+            {
+                controller.StartNewBotMatch(ChallengeController.PlayerType.NIWTFWD_v2_6, ChallengeController.PlayerType.MyBot);
+            }
             // Page buttons
             buttonPos.Y += breakSpacing;
 

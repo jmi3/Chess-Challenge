@@ -1,18 +1,14 @@
 ﻿using ChessChallenge.API;
-using ChessChallenge.Application;
 using System;
-using System.Collections.Generic;
-
+using System.Linq;
 
 namespace ChessChallenge.Example;
 public class MyBot : IChessBot
 {
-    private int _searched = 0;
-    // Set the depth you want the bot to evaluate
-    private int _depth = 6;
-    private int _max_depth = 2048;
-    private int _transposition_depth = 0;
-    private readonly ulong[,] _positionalWeights = 
+    private int _depth = 7;
+    private int _max_depth = 254;
+    private int _transposition_depth;
+    private readonly ulong[,] _positionalWeights =
     {
         {8683547591809433600, 1388309562400055824, 3915129336154501941, 384307146728703573, 2781419601154818592, 10986381248880408745},
         {6150110960405533511, 2623195334416164162, 3784827174736258659, 384307145385268560, 7393108935958960484, 7224376637290534231},
@@ -21,15 +17,13 @@ public class MyBot : IChessBot
     };
 
     private Board board;
-    private int _maximizing;
-    private Move _bestMove;
-    private int reduceDepth = 0;
+    private int _color;
     public struct Transposition
     {
-        public ulong zobristHash;
+        public ulong ZobristKey;
         public Move move;
         public int evaluation;
-        public sbyte depth;
+        public byte depth;
         public byte flag;
     };
 
@@ -42,118 +36,88 @@ public class MyBot : IChessBot
 
     public Move Think(Board board, Timer timer)
     {
-        
-        if (reduceDepth==1 && timer.MillisecondsRemaining < 7500 && timer.OpponentMillisecondsRemaining > timer.MillisecondsRemaining)
-        {
-            reduceDepth++;
-            _depth--;
-        }
+
         this.board = board;
-        _maximizing = board.IsWhiteToMove ? 1 : -1;
-        _searched = 0;
-
+        _color = board.IsWhiteToMove ? 1 : -1;
         int alpha = -80000000, beta = 80000000;
-
-        DateTime t = DateTime.Now;
         _transposition_depth = 0;
-        int result = TPTOrderABNegaMax(_depth, _maximizing, alpha, beta);
-        ref Transposition tran = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
-        ConsoleHelper.Log($"Playing {board.IsWhiteToMove} making move {_bestMove} with eval {tran.evaluation} material {Eval()}", false, ConsoleColor.White);
-        ConsoleHelper.Log($"TransposedABNega searched {_searched} in {(int)(DateTime.Now - t).TotalMilliseconds} ms", false, ConsoleColor.Blue);
-        if (reduceDepth==0)
+        int maxTime = (timer.MillisecondsRemaining + timer.IncrementMilliseconds) / 60;
+        for (int i = 1; i <= _depth; i++)
         {
-            _max_depth = 256;
-            reduceDepth++;
+            Console.WriteLine(i);
+            Search(i, _color, alpha, beta);
+            if (timeisok(maxTime, timer)) { break; }
         }
-        return _bestMove;
-    }
-    /*
-     
-     Recursion
-     
-     */
 
-    // Negamax algorithm with alpha-beta pruning
-    int TPTOrderABNegaMax(int depth, int maximizing, int alpha, int beta)
+        return m_TPTable[board.ZobristKey & 0x7FFFFF].move;
+    }
+
+    bool timeisok(int maxTime, Timer timer)
+    {
+        return (timer.MillisecondsRemaining >= 10000) ? maxTime <= timer.MillisecondsElapsedThisTurn : maxTime <= 2*timer.MillisecondsElapsedThisTurn;
+    }
+
+    int Search(int depth, int color, int alpha, int beta)
     {
         int startAlpha = alpha;
-        Move bestMove = Move.NullMove;
         ref Transposition transposition = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
-        if (transposition.zobristHash == board.ZobristKey && transposition.depth >= depth)
+        if (transposition.ZobristKey == board.ZobristKey && transposition.depth >= depth)
         {
-            ref int TPTeval = ref transposition.evaluation;
-            //If we have an "exact" score (a < score < beta) just use that
             if (transposition.flag == 1)
             {
                 if (_max_depth >= _transposition_depth)
                 {
-                    //ConsoleHelper.Log($"Jsem v chainu: {_transposition_depth}", false, ConsoleColor.Yellow);
                     _transposition_depth++;
-                    Move move = transposition.move;
-                    board.MakeMove(move);
-                    TPTeval = Math.Max(TPTeval, -TPTOrderABNegaMax(depth, -maximizing, -beta, -alpha));
-                    board.UndoMove(move);
+                 
+                    board.MakeMove(transposition.move);
+                    transposition.evaluation = -Search(depth, -color, -beta, -alpha);
+                    board.UndoMove(transposition.move);
                 }
 
-                if (_depth == depth)
-                {
-                    _bestMove = transposition.move;
-                }
-                return TPTeval;
+                return transposition.evaluation;
 
             }
             else if (transposition.flag == 2)
             {
 
-                alpha = Math.Max(alpha, TPTeval);
+                alpha = Math.Max(alpha, transposition.evaluation);
             }
             else if (transposition.flag == 3)
             {
-                beta = Math.Min(beta, TPTeval);
+                beta = Math.Min(beta, transposition.evaluation);
             }
             if (alpha >= beta)
             {
-                if (_depth == depth)
-                {
-                    _bestMove = transposition.move;
-                }
-                return TPTeval;
+                return transposition.evaluation;
             }
         }
-        if (depth <= 0 || board.IsDraw() || board.IsInCheckmate())
+       
+        if (board.IsDraw())
         {
-            if (board.IsDraw())
+            if (board.PlyCount > 34)
             {
-                if (board.PlyCount > 34)
-                {
-                    return 0;
-                }
-                else
-                {
-                    //Pokud evaluujeme z pohledu bileho,
-                    //tak predpokladame, ze cerny nas chce navest do remizy, tedy
-                    //ze je to pro nej vyhra
-                    return maximizing * (-2000);
-                }
+                return 0;
             }
-            else if (board.IsInCheckmate())
+            else
             {
-                //Pokud evaluujeme z pohledu bileho,
-                //tak udelal finishing move cerny, a tedy vyhral
-
-                return maximizing * (1000000 - 100 * (_depth - depth));
+                return 2000;
             }
-            return maximizing * Eval();
         }
+        if (board.IsInCheckmate())
+        {
+            return board.PlyCount - 5000000;
+        }
+        if (depth <= 0) { return Eval() * color; }
 
-        Move[] moves = OrderMoves();
+        Move[] moves = board.GetLegalMoves();
+        OrderMoves(ref moves);
+        Move bestMove = moves[0];
         int result = int.MinValue / 2;
         int temp;
         foreach (Move move in moves)
         {
             board.MakeMove(move);
-            _searched++;
-            temp = -TPTOrderABNegaMax(depth - 1, -maximizing, -beta, -alpha);
+            temp = -Search(depth - 1, -color, -beta, -alpha);
             board.UndoMove(move);
 
             if (temp > result)
@@ -170,9 +134,8 @@ public class MyBot : IChessBot
         }
 
         transposition.evaluation = result;
-        transposition.zobristHash = board.ZobristKey;
+        transposition.ZobristKey = board.ZobristKey;
         transposition.move = bestMove;
-
         if (result <= startAlpha)
         {
             transposition.flag = 3;
@@ -185,40 +148,18 @@ public class MyBot : IChessBot
         {
             transposition.flag = 1;
         }
-        transposition.depth = (sbyte)depth;
-        if (_depth == depth)
-        {
-            _bestMove = bestMove;
-        }
+        transposition.depth = (byte)(depth);
+
         return result;
     }
-    Move[] OrderMoves()
+
+
+
+    void OrderMoves(ref Move[] otherMoves)
     {
-        Move[] otherMoves = board.GetLegalMoves();
-        Move[] moves = new Move[otherMoves.Length];
-        int captures = board.GetLegalMoves(true).Length;
-        int seen_captures = 0;
-
-        for (int i = 0; i < otherMoves.Length; i++)
-        {
-            if (otherMoves[i].IsCapture)
-            {
-                moves[seen_captures] = otherMoves[i];
-                seen_captures++;
-            }
-            else
-            {
-                moves[captures + i - seen_captures] = otherMoves[i];
-            }
-        }
-
-        return moves;
+        bool[] sorter = otherMoves.Select(move => !move.IsCapture).ToArray();
+        Array.Sort(sorter, otherMoves);
     }
-    /* 
-    Evaluation
-    */
-
-
 
     int Eval()
     {
@@ -235,9 +176,9 @@ public class MyBot : IChessBot
                 white = -1;
                 blackShift = 7;
             }
-            
-            result += 
-                (((int)(_positionalWeights[(int)(white * (currentSquare.Rank - blackShift) / 2), (int)currentPiece.PieceType - 1] >> (4 * currentSquare.File + (white * (currentSquare.Rank - blackShift)) % 2 * 32)) & 15)
+
+            result +=
+                (((int)(_positionalWeights[(int)white * (currentSquare.Rank - blackShift) / 2, (int)currentPiece.PieceType - 1] >> (4 * currentSquare.File + (white * (currentSquare.Rank - blackShift)) % 2 * 32)) & 15)
                 + BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))
                 + PieceTypeValue(currentPiece.PieceType)) * white;
 
@@ -246,7 +187,8 @@ public class MyBot : IChessBot
     }
     int PieceTypeValue(PieceType pieceType)
     {
-        switch ((int)pieceType) {
+        switch ((int)pieceType)
+        {
             case 1: return 20;
             case 2: return 60;
             case 3: return 60;
@@ -256,4 +198,3 @@ public class MyBot : IChessBot
         }
     }
 }
-

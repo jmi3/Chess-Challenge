@@ -5,12 +5,14 @@ using System.Collections.Generic;
 
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class NIWTFWD_v5_6 : IChessBot
 {
+    //actually NIWTFWD_v5_6-
+
     private int _searched = 0;
     // Set the depth you want the bot to evaluate
-    private int _depth = 6;
-    private int _max_depth = 2048;
+    private int _depth = 5;
+    private int _max_depth = 512;
     private int _transposition_depth = 0;
     private readonly ulong[,] _positionalWeights = 
     {
@@ -35,17 +37,18 @@ public class MyBot : IChessBot
 
     Transposition[] m_TPTable;
 
-    public MyBot()
+    public NIWTFWD_v5_6()
     {
         m_TPTable = new Transposition[0x800000];
     }
 
     public Move Think(Board board, Timer timer)
     {
-        
-        if (reduceDepth==1 && timer.MillisecondsRemaining < 7500 && timer.OpponentMillisecondsRemaining > timer.MillisecondsRemaining)
+
+        if (reduceDepth == 2 && timer.MillisecondsRemaining < 8000 && timer.OpponentMillisecondsRemaining > timer.MillisecondsRemaining)
         {
             reduceDepth++;
+            _max_depth = 128;
             _depth--;
         }
         this.board = board;
@@ -124,7 +127,7 @@ public class MyBot : IChessBot
         {
             if (board.IsDraw())
             {
-                if (board.PlyCount > 34)
+                if (board.PlyCount > 28)
                 {
                     return 0;
                 }
@@ -133,7 +136,7 @@ public class MyBot : IChessBot
                     //Pokud evaluujeme z pohledu bileho,
                     //tak predpokladame, ze cerny nas chce navest do remizy, tedy
                     //ze je to pro nej vyhra
-                    return maximizing * (-2000);
+                    return 2000;
                 }
             }
             else if (board.IsInCheckmate())
@@ -141,12 +144,13 @@ public class MyBot : IChessBot
                 //Pokud evaluujeme z pohledu bileho,
                 //tak udelal finishing move cerny, a tedy vyhral
 
-                return maximizing * (1000000 - 100 * (_depth - depth));
+                return board.PlyCount - 5000000;
             }
             return maximizing * Eval();
         }
 
         Move[] moves = OrderMoves();
+
         int result = int.MinValue / 2;
         int temp;
         foreach (Move move in moves)
@@ -214,6 +218,33 @@ public class MyBot : IChessBot
 
         return moves;
     }
+
+    /*void OrderMoves(ref Move[] moves)
+    {
+        int[] sortmoves = new int[moves.Length];
+        ref Transposition transposition = ref m_TPTable[board.ZobristKey & 0x7FFFFF];
+        for (int i = 0; i < moves.Length; i++)
+        {
+            Move move = moves[i];
+            board.MakeMove(move);
+            sortmoves[i] = 0;
+            if (move.Equals(transposition.move))
+            {
+                sortmoves[i] = 1000;
+            }
+            else if (board.IsDraw())
+            {
+                sortmoves[i] = 10;
+            }
+            else if (move.IsCapture || move.IsCastles || board.IsInCheck())
+            {
+                sortmoves[i] = 100;
+            }
+            board.UndoMove(move);
+        }
+        Array.Sort(sortmoves, moves);
+    }*/
+
     /* 
     Evaluation
     */
