@@ -177,8 +177,16 @@ public class MyBot : IChessBot
                 blackShift = 7;
             }
 
+            var index1 = (int)white * (currentSquare.Rank - blackShift) / 2;
+            var index2 = (int)currentPiece.PieceType - 1;
+
+            if (index1 < 0 || index1 > 3 || index2 < 0 || index2 > 5)
+            {
+                throw new Exception();
+            }
+
             result +=
-                (((int)(_positionalWeights[(int)white * (currentSquare.Rank - blackShift) / 2, (int)currentPiece.PieceType - 1] >> (4 * currentSquare.File + (white * (currentSquare.Rank - blackShift)) % 2 * 32)) & 15)
+                (((int)(_positionalWeights[index1, index2] >> (4 * currentSquare.File + (white * (currentSquare.Rank - blackShift)) % 2 * 32)) & 15)
                 + BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetPieceAttacks(currentPiece.PieceType, currentSquare, board, currentPiece.IsWhite))
                 + PieceTypeValue(currentPiece.PieceType)) * white;
 
