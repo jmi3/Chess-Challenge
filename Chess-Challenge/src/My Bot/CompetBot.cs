@@ -3,9 +3,9 @@ using System;
 using System.Linq;
 
 namespace ChessChallenge.Example;
-public class MyBot : IChessBot
+public class CompetBot : IChessBot
 {
-    private int _depth = 8;
+    private int _depth = 7;
     private int _max_depth = 254;
     private int _transposition_depth;
     private readonly ulong[,] _positionalWeights =
@@ -29,7 +29,7 @@ public class MyBot : IChessBot
 
     Transposition[] m_TPTable;
 
-    public MyBot()
+    public CompetBot()
     {
         m_TPTable = new Transposition[0x800000];
     }

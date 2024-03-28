@@ -43,6 +43,11 @@ namespace ChessChallenge.Application
             {
                 controller.StartNewBotMatch(ChallengeController.PlayerType.NIWTFWD_v2_6, ChallengeController.PlayerType.MyBot);
             }
+            if (NextButtonInRow("MyBot vs CompetBot", ref buttonPos, spacing, buttonSize))
+            {
+                controller.StartNewBotMatch(ChallengeController.PlayerType.MyBot, ChallengeController.PlayerType.CompetBot);
+            }
+
             // Page buttons
             buttonPos.Y += breakSpacing;
 

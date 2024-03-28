@@ -29,10 +29,13 @@
     <Compile Update="src\My Bot\HonzaBoti\HonzaBot_v2_0.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
+    <Compile Update="src\My Bot\MyBot.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
     <Compile Update="src\My Bot\NIWTFWD_v2_6.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
-    <Compile Update="src\My Bot\MyBot.cs">
+    <Compile Update="src\My Bot\CompetBot.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Compile>
     <Compile Update="src\My Bot\NIWTFWD_v2_4.cs">

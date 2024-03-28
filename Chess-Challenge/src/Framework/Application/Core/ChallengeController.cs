@@ -22,7 +22,8 @@ namespace ChessChallenge.Application
             EvilBot,
             Stockfish,
             NIWTFWD_v5_6,
-            NIWTFWD_v2_6
+            NIWTFWD_v2_6,
+            CompetBot
         }
 
         // Game state
@@ -216,6 +217,7 @@ namespace ChessChallenge.Application
                 PlayerType.Stockfish => new ChessPlayer(new StockfishBot(), type, GameDurationMilliseconds),
                 PlayerType.NIWTFWD_v5_6 => new ChessPlayer(new NIWTFWD_v5_6(), type, GameDurationMilliseconds),
                 PlayerType.NIWTFWD_v2_6 => new ChessPlayer(new NIWTFWD_v2_6(), type, GameDurationMilliseconds),
+                PlayerType.CompetBot => new ChessPlayer(new CompetBot(), type, GameDurationMilliseconds),
                 _ => new ChessPlayer(new HumanPlayer(boardUI), type),
                
             };
